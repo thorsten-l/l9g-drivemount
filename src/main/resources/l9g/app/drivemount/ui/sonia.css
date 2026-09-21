@@ -1,0 +1,154 @@
+/*
+ * SONIA-Erscheinungsbild fuer drivemount.
+ * Farben und Radien uebernommen aus dem Keycloak-Theme
+ * (sonia-theme-keycloak-v2/src/main/theme/sonia/login/resources/css/sonia.css),
+ * damit Login-Maske im Browser und Desktop-Anwendung gleich aussehen.
+ *
+ * Schriftgroesse: 20px = 1,5x des JavaFX-Standards von 13px. Wird auf .root
+ * gesetzt und von allen Kindelementen geerbt - eine einzige Stellschraube.
+ */
+
+.root
+{
+  -sonia-blue: #004077;
+  -sonia-blue-hover: #00558f;
+  -sonia-blue-active: #002e56;
+  -sonia-heading: #1b2a3a;
+  -sonia-page-bg: #f1f3f5;
+  -sonia-border: #d7dde3;
+  -sonia-muted: #5b6672;
+
+  -fx-font-size: 20px;
+
+  /*
+   * Hintergrund nachgebaut aus assets/bg-light.svg des Keycloak-Themes:
+   * radialer Schimmer von links oben (#dfe9f4 -> #f1f3f5), darueber zwei
+   * blaue Kreise unten rechts mit 6% und 5% Deckkraft.
+   *
+   * Kein SVG, weil JavaFX keines darstellt - und als PNG waere es an eine
+   * Fenstergroesse gebunden. Als Verlauf skaliert es mit.
+   * Reihenfolge: erster Eintrag liegt unten.
+   *
+   * Die harten Stops bei 99%/100% erzeugen die scharfe Kreiskante des SVG;
+   * ein weicher Verlauf saehe nach Schlagschatten aus, nicht nach Kreis.
+   */
+  -fx-background-color:
+    radial-gradient(center 15% 0%, radius 95%, #dfe9f4, -sonia-page-bg),
+    radial-gradient(center 99% 99%, radius 34%,
+      rgba(0, 64, 119, 0.06) 99%, transparent 100%),
+    radial-gradient(center 84% 116%, radius 24%,
+      rgba(0, 64, 119, 0.05) 99%, transparent 100%);
+}
+
+/* Karte: zwei geschichtete Hintergruende - der blaue liegt unten und schaut
+   oben als 5px-Akzent heraus, genau wie die Kartenkante im Keycloak-Theme. */
+.card
+{
+  -fx-background-color: -sonia-blue, white;
+  -fx-background-insets: 0, 5 0 0 0;
+  -fx-background-radius: 14, 0 0 14 14;
+  -fx-effect: dropshadow(gaussian, rgba(0, 32, 64, 0.16), 26, 0, 0, 8);
+  -fx-padding: 26;
+}
+
+.title
+{
+  -fx-font-size: 24px;
+  -fx-font-weight: bold;
+  -fx-text-fill: -sonia-heading;
+}
+
+/* Zentriert. Ueber CSS statt per alignment-Attribut im FXML: CSS-Properties
+   laufen ueber StyleableProperty, nicht ueber Reflection - spart dem Native
+   Image eine weitere Registrierung. */
+.status
+{
+  -fx-text-fill: -sonia-muted;
+  -fx-alignment: center;
+  -fx-text-alignment: center;
+  -fx-max-width: infinity;
+  /* Kleiner als der Rest: sekundaere Information, und bei 20px braeche die
+     Erfolgsmeldung in der 470px breiten Karte um. Entspricht dem 0.9rem
+     des Keycloak-Themes fuer Nebentexte. */
+  -fx-font-size: 17px;
+}
+
+/* Versionsangabe unten links im Fenster - bewusst unauffaellig. */
+.version
+{
+  -fx-font-size: 12px;
+  -fx-text-fill: derive(-sonia-muted, 35%);
+  -fx-padding: 0 0 8 12;
+}
+
+.text-field,
+.password-field
+{
+  -fx-background-color: white;
+  -fx-background-radius: 8;
+  -fx-border-color: -sonia-border;
+  -fx-border-radius: 8;
+  -fx-padding: 11 13 11 13;
+  -fx-prompt-text-fill: #8a949e;
+}
+
+/* Fokus: blauer Rahmen. Das Padding faengt die dickere Linie ab, damit die
+   Feldhoehe konstant bleibt und nichts springt. */
+.text-field:focused,
+.password-field:focused
+{
+  -fx-border-color: -sonia-blue;
+  -fx-border-width: 2;
+  -fx-padding: 10 12 10 12;
+}
+
+.button
+{
+  -fx-background-color: -sonia-blue;
+  -fx-background-radius: 8;
+  -fx-text-fill: white;
+  -fx-font-weight: bold;
+  -fx-padding: 13 20 13 20;
+  -fx-cursor: hand;
+}
+
+.button:hover
+{
+  -fx-background-color: -sonia-blue-hover;
+}
+
+.button:pressed
+{
+  -fx-background-color: -sonia-blue-active;
+}
+
+.button:disabled
+{
+  -fx-opacity: 0.45;
+}
+
+.list-view
+{
+  -fx-background-color: white;
+  -fx-background-radius: 8;
+  -fx-border-color: -sonia-border;
+  -fx-border-radius: 8;
+  -fx-padding: 2;
+}
+
+.list-view .list-cell
+{
+  -fx-background-color: transparent;
+  -fx-text-fill: -sonia-heading;
+  -fx-padding: 6 10 6 10;
+  -fx-font-size: 17px;
+}
+
+/* Die Mount-Meldungen sind laenger als die Karte breit ist. Statt eines
+   waagerechten Scrollbalkens lieber abschneiden - das Wesentliche ([OK] und
+   der Name des Laufwerks) steht vorne. */
+.list-view > .virtual-flow > .scroll-bar:horizontal
+{
+  -fx-pref-height: 0;
+  -fx-opacity: 0;
+}

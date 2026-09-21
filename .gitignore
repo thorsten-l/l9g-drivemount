@@ -1,0 +1,87 @@
+# ---------------------------------------------------------------- Secrets
+# Diese beiden Dateien gehoeren zusammen und bleiben draussen:
+#
+#   application.yaml   produktive Konfiguration (IDP, Realm, Fileserver) und
+#                      das verschluesselte Client-Secret
+#   assets/secret.bin  der 32-Byte-Schluessel, mit dem genau dieser
+#                      {AES256}-Wert entschluesselt wird
+#
+# Eine frische Arbeitskopie baut damit NICHT ohne Weiteres: beide Dateien
+# muessen aus einer sicheren Quelle dazugelegt werden. Als Startpunkt dient
+# application.yaml.sample (eingecheckt) - kopieren, Werte eintragen und das
+# Secret mit "java -jar target/drivemount.jar -e <klartext>" verschluesseln.
+# Der dabei verwendete Schluessel ist der, der spaeter im Artefakt landet;
+# ein neuer secret.bin macht alte {AES256}-Werte unbrauchbar.
+src/main/resources/application.yaml
+src/main/resources/assets/secret.bin
+
+# Lokale Ueberschreibungen, die nie geteilt werden sollen
+application-local.yaml
+application-*.local.yaml
+
+# Werte der eigenen Umgebung fuer die Build-Skripte: Rechnernamen, Pfade,
+# Signaturangaben. Keine Geheimnisse, aber auch nichts, was in eine
+# oeffentliche Historie gehoert. Die Vorlage env.sample bleibt versioniert.
+.env
+
+# ------------------------------------------------------------------ Build
+target/
+build/
+distrib/
+.mvn/wrapper/maven-wrapper.jar
+dependency-reduced-pom.xml
+
+# Fertige Anwendungspakete (drei Archive, zusammen ~110 MB). Sie entstehen
+# aus DISTRIB.sh und gehoeren in ein Release, nicht in die Historie.
+# Die Beschreibung daneben bleibt versioniert.
+/distrib/*
+!/distrib/README.md
+
+# Laufzeit-Logs (siehe README: drivemount --logging.file.name=...)
+*.log
+
+# --------------------------------------------------------------------- IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+nbproject/private/
+nb-configuration.xml
+nbactions.xml
+.classpath
+.project
+.settings/
+*.swp
+*~
+
+# ------------------------------------------------------------------ macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.DocumentRevisions-V100
+.TemporaryItems
+.Trashes
+.fseventsd
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+# Kein "Icon?" fuer das Ordnersymbol-File: git matcht auf APFS ohne
+# Gross-/Kleinschreibung, das Muster verschluckt damit packaging/icons/.
+
+# ------------------------------------------------------ Windows und Linux
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.directory
+.nfs*
+
+CLAUDE.md
+GEMINI.md
+.claude
+.gemini
+
+# Mitschnitte von BUILD_ALL_APPS.sh
+.build-logs/

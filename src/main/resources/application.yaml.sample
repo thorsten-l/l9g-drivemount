@@ -1,0 +1,78 @@
+# Vorlage fuer src/main/resources/application.yaml.
+#
+# Enthaelt bewusst keine produktiven Werte: kein echter IDP, kein Realm,
+# kein Client-Secret, keine echten Shares. Zum Einrichten kopieren und die
+# Platzhalter ersetzen:
+#
+#   cp src/main/resources/application.yaml.sample \
+#      src/main/resources/application.yaml
+#
+# Die echte application.yaml gehoert nicht in ein oeffentliches Repository -
+# das Client-Secret darin ist zwar verschluesselt, der Schluessel liegt aber
+# als assets/secret.bin daneben (siehe unten).
+
+spring:
+  main:
+    # Kein Webserver - Spring liefert hier nur Dependency Injection und
+    # Konfiguration; die Oberflaeche ist JavaFX.
+    web-application-type: NONE
+    banner-mode: off
+  profiles:
+    active: default
+
+drivemount:
+  keycloak:
+    # Basis-URL des Keycloak (ohne /realms/...) und der Realm-Name.
+    base-url: https://idp.example.org
+    realm: example
+
+    # Client-ID aus der Keycloak-Administration. Der Client braucht einen
+    # duplizierten Direct-Grant-Flow mit "direct-grant-validate-otp" auf
+    # Required, gebunden ueber Advanced -> Authentication flow overrides
+    # (siehe README).
+    client-id: drivemount
+
+    # Client-Secret des confidential Clients, verschluesselt durch l9g-crypto.
+    # Den Wert erzeugt die Anwendung selbst:
+    #
+    #   java -jar target/drivemount.jar -e "<klartext-secret>"
+    #
+    # Die Ausgabe ist der komplette {AES256}-String und kommt hier hinein.
+    #
+    # WICHTIG: Das ist Verschleierung, kein Schutz. Der Schluessel wird als
+    # assets/secret.bin im selben Artefakt ausgeliefert - wer das Binary hat,
+    # kommt mechanisch an den Klartext. Das Secret authentifiziert die
+    # Anwendung gegenueber Keycloak, nicht den Benutzer; abgesichert wird der
+    # Login durch Passwort + TOTP.
+    client-secret: "{AES256}HIER_DEN_VERSCHLUESSELTEN_WERT_EINTRAGEN"
+
+  # Optionaler Claim mit einer benutzerspezifischen Share-Liste. Fehlt er oder
+  # ist er leer, gelten die statischen Shares weiter unten. Ist er vorhanden,
+  # gewinnt er. Erlaubt ist ein JSON-Array oder ein String, der eines enthaelt.
+  shares-claim: smbShares
+
+  # Aus dieser Mailadresse wird die AD-Domaene abgeleitet: Teil hinter dem
+  # "@" ohne TLD, also "vorname.nachname@example.org" -> "example".
+  # Keycloak liefert den Standard-Claim "email" nur mit scope=openid email;
+  # "mail" wird als Alternative ebenfalls geprueft.
+  mail-claim: email
+
+  # Fallback, falls im Token keine Mailadresse steht.
+  smb-domain: example
+
+  # Wartezeit, bevor sich das Fenster nach erfolgreichem Verbinden ALLER
+  # Laufwerke schliesst - lang genug, um die Ergebnisliste zu lesen.
+  # "0" schliesst sofort; bei Fehlern bleibt das Fenster ohnehin offen.
+  close-delay: 2s
+
+  # Statische Shares - existieren fuer alle Benutzer. Der Benutzername kommt
+  # aus dem Login-Dialog, die Domaene aus dem Mail-Claim; zusammen ergibt das
+  # die Anmeldung "example\<user>" am Fileserver.
+  # "mount" ist der Windows-Laufwerksbuchstabe; unter macOS/Linux ignoriert.
+  shares:
+    - label: User Home
+      url: smb://fileserver.example.org/home
+      mount: H
+    - label: Group Share
+      url: smb://fileserver.example.org/group
+      mount: G

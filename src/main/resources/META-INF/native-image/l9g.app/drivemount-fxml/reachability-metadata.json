@@ -1,0 +1,166 @@
+{
+  "comment": [
+    "Handgepflegt - NICHT vom Tracing-Agent erzeugt.",
+    "Der Agent schreibt nach META-INF/native-image/ (eine Ebene hoeher) und",
+    "fasst dieses Unterverzeichnis nicht an.",
+    "",
+    "FXML-Controller werden komplett ueber Reflection angesprochen: @FXML-",
+    "Felder beim Laden, onAction-Handler beim Klick. Einzelne Member zu",
+    "registrieren ist bruechig - ein Agent-Lauf, der nur den Start abdeckt,",
+    "erfasst keinen Handler, und das Binary scheitert dann erst beim Klick",
+    "(MissingReflectionRegistrationError). Deshalb pauschal alles.",
+    "",
+    "Aus demselben Grund keine Konstruktor-Signaturen aufzaehlen: die",
+    "veralten beim naechsten Refactoring still.",
+    "",
+    "Das Logo muss hier stehen, weil der Tracing-Agent es nicht sieht: FXML",
+    "loest die @-URL selbst auf und laedt das Bild ueber einen Stream, nicht",
+    "ueber getResource() - der Agent registriert deshalb login.fxml und",
+    "sonia.css, aber nicht das PNG. Ohne diesen Eintrag baut das Image sauber",
+    "und zeigt spaeter einfach kein Logo (unter Windows nachgewiesen: die",
+    "Bilddaten fehlten im Binary).",
+    "",
+    "secret.bin muss ebenfalls hier stehen: -H:IncludeResources deckt nur",
+    "fxml|css|png|yaml|yml ab, und AppSecretKey liest den Schluessel per",
+    "getResourceAsStream, wenn SECRET_PATH mit 'classpath:' beginnt.",
+    "",
+    "foreign: der Downcall nach WNetAddConnection2W. Native Image legt die",
+    "Downcall-Stubs zur Bauzeit an; ein zur Laufzeit erzeugter Linker-Handle",
+    "findet sonst keinen und wirft MissingForeignRegistrationError (unter",
+    "Windows nachgewiesen - der Build meldete vorher '0 downcalls and 0",
+    "upcalls registered for foreign access'). Die Namen sind die kanonischen",
+    "Layouts des Linkers: 'void*' = ADDRESS, 'int' = JAVA_INT. Die Signatur",
+    "muss zu WindowsWNetMounter#mount passen; aendert sie sich dort, gehoert",
+    "sie hier nachgezogen.",
+    "",
+    "Dazu NetFSMountURLSync (MacosMounter) und die CoreFoundation-Aufrufe, die",
+    "es fuettern. Registriert wird nach *erased* Signatur, gleiche Formen",
+    "fallen also zusammen - die Liste ist laenger als die Zahl der Stubs, die",
+    "der Build am Ende meldet. Eintraege der jeweils anderen Plattform stoeren",
+    "nicht, sie erzeugen nur ungenutzte Stubs.",
+    "",
+    "CFIndex steht hier als 'size_t' und nicht als 'long': die kanonischen",
+    "Layouts sind plattformabhaengig - unter macOS ist 'long' 8 Byte (j8),",
+    "unter Windows 4 (i4). In einer gemeinsamen Datei waere 'long' also je",
+    "nach Ziel etwas anderes; 'size_t' ist auf beiden 8 Byte. 'int64_t'",
+    "waere praeziser, der Layout-Parser bricht aber an der Ziffer ab",
+    "(\"Parsing ended (at 3) before its end\"). Nur das Layout zaehlt, das",
+    "Vorzeichen spielt fuer den Aufruf keine Rolle.",
+    "",
+    "Zuordnung der downcalls (in dieser Reihenfolge):",
+    "  WNetAddConnection2W(LPNETRESOURCEW, LPCWSTR, LPCWSTR, DWORD)",
+    "  NetFSMountURLSync(CFURLRef, CFURLRef, CFStringRef, CFStringRef, CFMutableDictionaryRef, CFMutableDictionaryRef, CFArrayRef*)",
+    "  CFURLCreateWithBytes(CFAllocatorRef, const UInt8*, CFIndex, CFStringEncoding, CFURLRef)",
+    "  CFStringCreateWithCharacters(CFAllocatorRef, const UniChar*, CFIndex)",
+    "  CFDictionaryCreateMutable(CFAllocatorRef, CFIndex, const CFDictionaryKeyCallBacks*, const CFDictionaryValueCallBacks*)",
+    "  CFDictionarySetValue(CFMutableDictionaryRef, const void*, const void*)",
+    "  CFArrayGetCount(CFArrayRef)",
+    "  CFArrayGetValueAtIndex(CFArrayRef, CFIndex)",
+    "  CFStringGetCString(CFStringRef, char*, CFIndex, CFStringEncoding) -> Boolean",
+    "  CFRelease(CFTypeRef)"
+  ],
+  "reflection": [
+    {
+      "type": "l9g.app.drivemount.ui.LoginController",
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true
+    }
+  ],
+  "foreign": {
+    "downcalls": [
+      {
+        "returnType": "int",
+        "parameterTypes": [
+          "void*",
+          "void*",
+          "void*",
+          "int"
+        ]
+      },
+      {
+        "returnType": "int",
+        "parameterTypes": [
+          "void*",
+          "void*",
+          "void*",
+          "void*",
+          "void*",
+          "void*",
+          "void*"
+        ]
+      },
+      {
+        "returnType": "void*",
+        "parameterTypes": [
+          "void*",
+          "void*",
+          "size_t",
+          "int",
+          "void*"
+        ]
+      },
+      {
+        "returnType": "void*",
+        "parameterTypes": [
+          "void*",
+          "void*",
+          "size_t"
+        ]
+      },
+      {
+        "returnType": "void*",
+        "parameterTypes": [
+          "void*",
+          "size_t",
+          "void*",
+          "void*"
+        ]
+      },
+      {
+        "returnType": "void",
+        "parameterTypes": [
+          "void*",
+          "void*",
+          "void*"
+        ]
+      },
+      {
+        "returnType": "size_t",
+        "parameterTypes": [
+          "void*"
+        ]
+      },
+      {
+        "returnType": "void*",
+        "parameterTypes": [
+          "void*",
+          "size_t"
+        ]
+      },
+      {
+        "returnType": "char",
+        "parameterTypes": [
+          "void*",
+          "void*",
+          "size_t",
+          "int"
+        ]
+      },
+      {
+        "returnType": "void",
+        "parameterTypes": [
+          "void*"
+        ]
+      }
+    ]
+  },
+  "resources": [
+    {
+      "glob": "assets/SONIA-Logo-128h.png"
+    },
+    {
+      "glob": "assets/secret.bin"
+    }
+  ]
+}
