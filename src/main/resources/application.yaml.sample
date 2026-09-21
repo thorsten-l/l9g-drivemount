@@ -65,6 +65,14 @@ drivemount:
   # "0" schliesst sofort; bei Fehlern bleibt das Fenster ohnehin offen.
   close-delay: 2s
 
+  # Selbstverwaltung des IDP. Ist der Wert gesetzt, zeigt die Login-Maske
+  # unter dem TOTP-Feld den Verweis "Kontosicherheit verwalten" und oeffnet
+  # ihn im Standardbrowser des Betriebssystems - dort laesst sich zum
+  # Beispiel ein neuer Authenticator einrichten, wenn das Einmalkennwort
+  # nicht mehr passt. Bei Keycloak ist das der unten stehende Pfad.
+  # Weglassen oder leer lassen blendet den Verweis aus.
+  account-security-url: https://idp.example.org/realms/example/account/account-security/signing-in
+
   # Statische Shares, gruppiert nach AD-Domaene. Der Schluessel ist genau
   # das, was oben aus der Mailadresse abgeleitet wird: Teil hinter dem "@"
   # ohne TLD. Aus "a@example.org" wird "example", aus "b@example-zwei.de"

@@ -46,7 +46,7 @@ class KeycloakAuthServiceTest
     return new KeycloakAuthService(new DrivemountProperties(
       new DrivemountProperties.Keycloak("https://idp.example.org", "r", "c",
         "s"),
-      "email", "fallbackdomain", Duration.ofSeconds(2),
+      "email", "fallbackdomain", Duration.ofSeconds(2), null,
       SHARES_BY_DOMAIN));
   }
 

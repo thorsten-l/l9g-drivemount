@@ -9,6 +9,7 @@ import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import l9g.app.drivemount.ui.BrowserLauncher;
 import l9g.app.drivemount.ui.LicenseDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,6 +95,10 @@ public class DrivemountApplication extends Application
   @Override
   public void start(Stage stage) throws Exception
   {
+    // Vor dem Laden der Maske: der Controller haengt beim Initialisieren
+    // schon den Verweis zur Kontosicherheit ein, der darauf zurueckgreift.
+    BrowserLauncher.install(getHostServices());
+
     FXMLLoader loader = new FXMLLoader(
       getClass().getResource("/l9g/app/drivemount/ui/login.fxml"));
     loader.setControllerFactory(context::getBean);

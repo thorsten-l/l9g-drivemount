@@ -12,11 +12,13 @@ import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
+import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
+import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import l9g.app.drivemount.auth.KeycloakAuthService;
 import l9g.app.drivemount.config.DrivemountProperties;
@@ -96,6 +98,9 @@ public class LoginController
   @FXML
   private ListView<String> resultList;
 
+  @FXML
+  private VBox card;
+
   /**
    * Konstruktorinjektion durch Spring - moeglich, weil der FXMLLoader seine
    * Controller ueber {@code setControllerFactory} aus dem Kontext bezieht.
@@ -144,6 +149,41 @@ public class LoginController
     // statt den Start scheitern zu lassen.
     BuildProperties build = buildProperties.getIfAvailable();
     versionLabel.setText(build != null ? "v" + build.getVersion() : "");
+
+    addAccountSecurityLink();
+  }
+
+  /**
+   * Haengt den Verweis "Kontosicherheit verwalten" unter das TOTP-Feld.
+   *
+   * <p>Er fuehrt zur Selbstverwaltung des IDP
+   * ({@code drivemount.account-security-url}), wo sich etwa ein neuer
+   * Authenticator einrichten laesst - die haeufigste Frage, wenn das
+   * Einmalkennwort nicht mehr passt. Geoeffnet wird im Standardbrowser des
+   * Betriebssystems, siehe {@link BrowserLauncher}.</p>
+   *
+   * <p>Ist keine Adresse konfiguriert, entsteht der Knoten gar nicht erst:
+   * ein Verweis ins Leere waere schlimmer als keiner. Deshalb steht er auch
+   * nicht im FXML - dort waere er immer da, und ein {@link Hyperlink} als
+   * neuer Typ braeuchte ausserdem eine Registrierung in den
+   * Reachability-Metadaten. Im Code erzeugte Knoten brauchen keine.</p>
+   */
+  private void addAccountSecurityLink()
+  {
+    String url = props.accountSecurityUrl();
+    if (url == null || url.isBlank())
+    {
+      return;
+    }
+
+    Hyperlink link = new Hyperlink("Kontosicherheit verwalten");
+    link.getStyleClass().add("account-link");
+    link.setOnAction(event -> BrowserLauncher.open(url));
+
+    // Direkt hinter das TOTP-Feld, nicht ans Ende: der Verweis gehoert zum
+    // Einmalkennwort und nicht zur Schaltflaeche darunter.
+    card.getChildren().add(
+      card.getChildren().indexOf(totpField) + 1, link);
   }
 
   /**

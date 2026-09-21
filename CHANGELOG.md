@@ -8,6 +8,24 @@ Die Zeilen sind aus dem Projektstand und den gebauten Paketen rekonstruiert —
 das Repository wurde erst am 21.09.2026 angelegt und hat für die Zeit davor
 keine Historie.
 
+## [1.1.1] — 2026-09-21
+
+Eine Ergänzung in der Login-Maske, sonst unverändert gegenüber 1.1.0. Die
+Konfiguration bleibt kompatibel: `drivemount.account-security-url` ist
+optional, ohne den Eintrag sieht die Maske aus wie bisher.
+
+### Hinzugefügt
+
+- **Verweis „Kontosicherheit verwalten“** unter dem TOTP-Feld. Ein Klick
+  öffnet `drivemount.account-security-url` im **Standardbrowser des
+  Betriebssystems** — bei Keycloak also die Selbstverwaltung, in der sich
+  etwa ein neuer Authenticator einrichten lässt, wenn das Einmalkennwort
+  nicht mehr passt. Etwas kleinerer Zeichensatz als die Felder darüber
+  (17px gegen 20px), damit der Verweis die Anmeldung nicht überlagert.
+  Fehlt die Einstellung oder ist sie leer, erscheint er gar nicht.
+- Neue Einstellung `drivemount.account-security-url`, dokumentiert in
+  `application.yaml.sample`.
+
 ## [1.1.0] — 2026-09-21
 
 Die erste Version, die mit einer Installation **mehrere AD-Domänen** bedient

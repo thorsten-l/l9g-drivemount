@@ -134,6 +134,22 @@ in rund drei Sekunden nach `target/ui-preview.png`, ohne ein Fenster zu
 mvn javafx:run           # oder interaktiv ausprobieren
 ```
 
+### Kontosicherheit
+
+Ist `drivemount.account-security-url` gesetzt, steht unter dem TOTP-Feld der
+Verweis **„Kontosicherheit verwalten“**. Er öffnet die Adresse im
+Standardbrowser des Betriebssystems — bei Keycloak die Selbstverwaltung
+(`…/account/account-security/signing-in`), in der sich ein neuer
+Authenticator einrichten lässt, wenn das Einmalkennwort nicht mehr passt.
+Ohne die Einstellung erscheint der Verweis nicht; eine Installation ohne
+Selbstverwaltung soll nicht auf eine tote Seite zeigen.
+
+Geöffnet wird über die JavaFX-`HostServices`, die die Adresse an die
+Plattform weiterreichen: `LSOpenCFURLRef` (macOS, dieselbe Schnittstelle wie
+`open`), `ShellExecute` (Windows), `gtk_show_uri` (Linux). Nur wenn das
+fehlschlägt, folgt das Kommando selbst — `open`, `rundll32
+url.dll,FileProtocolHandler` beziehungsweise `xdg-open`.
+
 ### Lizenzfenster
 
 Solange die Login-Maske sichtbar ist, öffnet **Strg+Alt+L** (unter macOS
@@ -164,7 +180,8 @@ mvn javafx:run          # Dev-Run (löst JavaFX-Module sauber auf)
 ```
 
 Konfiguration in `src/main/resources/application.yaml`
-(`drivemount.keycloak.*`, `mail-claim`, `smb-domain`, `shares`). Daneben liegt
+(`drivemount.keycloak.*`, `mail-claim`, `smb-domain`, `close-delay`,
+`account-security-url`, `shares`). Daneben liegt
 `application.yaml.sample` — dieselbe Struktur mit Platzhaltern statt
 produktiver Werte und mit kommentierten Feldern, als Startpunkt für eine eigene
 Installation. Die Vorlage wird nicht ins Artefakt gepackt (`**/*.sample` ist in
@@ -539,6 +556,9 @@ Die Symbole liegen fertig im Projekt (`packaging/drivemount.icns`,
 - [x] GitHub-Workflow entfernt — er baute nie erfolgreich durch und stand
       dem Projekt eher im Weg. Was ein neuer Anlauf wissen muss, steht in
       CLAUDE.md unter „Kein CI“
+- [x] Verweis „Kontosicherheit verwalten“ unter dem TOTP-Feld — im nativen
+      Binary geprüft: `HostServices` öffnen den Standardbrowser direkt, der
+      Rückfallweg über `open`/`xdg-open`/`rundll32` kam nicht zum Einsatz
 - [x] LICENSE-Datei (Apache-2.0) ergänzt; die Anwendung zeigt sie über
       Strg+Alt+L im Lizenzfenster an — im nativen Binary geprüft (Fenster,
       Scrollen, Darstellung), es fehlen also keine Reachability-Metadaten

@@ -73,6 +73,33 @@
   -fx-font-size: 17px;
 }
 
+/*
+ * Verweis "Kontosicherheit verwalten" unter dem TOTP-Feld. Etwas kleiner als
+ * die Felder darueber (17px gegen 20px, dieselbe Groesse wie die
+ * Statuszeile): eine Nebenfunktion, die den Blick nicht vom Anmelden
+ * wegziehen soll.
+ *
+ * Der Hyperlink bringt von Haus aus Rahmen und Fokusstrich mit; beides wird
+ * abgeraeumt, damit der Verweis wie Text aussieht und nicht wie eine
+ * halbe Schaltflaeche.
+ */
+.account-link
+{
+  -fx-font-size: 17px;
+  -fx-text-fill: -sonia-blue;
+  -fx-padding: 0;
+  -fx-border-color: transparent;
+  -fx-underline: false;
+  -fx-cursor: hand;
+}
+
+.account-link:hover,
+.account-link:focused
+{
+  -fx-text-fill: -sonia-blue-hover;
+  -fx-underline: true;
+}
+
 /* Versionsangabe unten links im Fenster - bewusst unauffaellig. */
 .version
 {

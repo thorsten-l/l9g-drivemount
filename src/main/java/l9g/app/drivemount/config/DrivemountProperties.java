@@ -27,6 +27,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param closeDelay  Wartezeit, bevor sich das Fenster nach erfolgreichem
  *                    Verbinden aller Laufwerke schliesst (z.B. "2s", "500ms",
  *                    "0" fuer sofort). Default: 2s.
+ * @param accountSecurityUrl
+ *                    Adresse der Kontoverwaltung des IDP (bei Keycloak
+ *                    {@code .../account/account-security/signing-in}). Ist
+ *                    sie gesetzt, zeigt die Login-Maske unter dem TOTP-Feld
+ *                    den Verweis "Kontosicherheit verwalten", der sie im
+ *                    Standardbrowser oeffnet. Fehlt sie oder ist sie leer,
+ *                    bleibt der Verweis weg - eine Installation ohne
+ *                    Selbstverwaltung soll nicht auf eine tote Seite
+ *                    zeigen.
  * @param shares      Statische Shares <b>je AD-Domaene</b>. Der Schluessel
  *                    ist die Domaene, wie sie
  *                    {@code KeycloakAuthService#extractDomain} aus der
@@ -41,6 +50,7 @@ public record DrivemountProperties(
   String mailClaim,
   String smbDomain,
   Duration closeDelay,
+  String accountSecurityUrl,
   Map<String, List<SmbShare>> shares)
 {
   /**

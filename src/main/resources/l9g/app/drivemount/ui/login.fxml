@@ -35,7 +35,12 @@
       </ImageView>
     </HBox>
 
-    <VBox styleClass="card" spacing="14" maxWidth="470">
+    <!-- fx:id, damit der Controller den Verweis "Kontosicherheit verwalten"
+         direkt unter dem TOTP-Feld einhaengen kann. Der Knoten entsteht im
+         Code und nicht hier: jeder neue Typ im FXML wird reflektiv
+         aufgeloest und braucht dann einen Eintrag in den
+         Reachability-Metadaten. -->
+    <VBox fx:id="card" styleClass="card" spacing="14" maxWidth="470">
       <Label text="Netzlaufwerke verbinden" styleClass="title"/>
       <TextField fx:id="usernameField" promptText="Benutzername"/>
       <PasswordField fx:id="passwordField" promptText="Passwort"/>
