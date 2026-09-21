@@ -18,6 +18,7 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import l9g.app.drivemount.auth.KeycloakAuthService;
@@ -162,6 +163,10 @@ public class LoginController
    * Einmalkennwort nicht mehr passt. Geoeffnet wird im Standardbrowser des
    * Betriebssystems, siehe {@link BrowserLauncher}.</p>
    *
+   * <p>Ein Tooltip erklaert, wofuer man dort hin will: wer noch kein
+   * Einmalkennwort eingerichtet hat, legt es unter "Authenticator-Anwendung
+   * einrichten" an.</p>
+   *
    * <p>Ist keine Adresse konfiguriert, entsteht der Knoten gar nicht erst:
    * ein Verweis ins Leere waere schlimmer als keiner. Deshalb steht er auch
    * nicht im FXML - dort waere er immer da, und ein {@link Hyperlink} als
@@ -179,6 +184,26 @@ public class LoginController
     Hyperlink link = new Hyperlink("Kontosicherheit verwalten");
     link.getStyleClass().add("account-link");
     link.setOnAction(event -> BrowserLauncher.open(url));
+
+    // Der Hinweis beantwortet die Frage, die hinter dem Verweis steckt:
+    // "Ich habe gar keinen TOTP-Code." Genau dafuer gibt es die
+    // Selbstverwaltung des IDP; der Name des dortigen Eintrags steht mit
+    // drin, damit niemand auf der Seite suchen muss.
+    Tooltip hint = new Tooltip("Solltest du noch keinen TOTP Code haben,"
+      + " erstelle dir einen unter 'Authenticator-Anwendung einrichten'");
+    // Die Voreinstellung sind 1000 ms; das fuehlt sich nach Verzoegerung an,
+    // wenn jemand kurz ueber den Verweis faehrt.
+    hint.setShowDelay(Duration.millis(400));
+    // Lange URLs sonst als eine endlose Zeile ueber den halben Bildschirm.
+    hint.setWrapText(true);
+    hint.setMaxWidth(420);
+    // Inline und nicht in sonia.css: ein Tooltip ist ein eigenes Fenster mit
+    // eigener Szene, und die bekommt das Stylesheet der Login-Maske nicht
+    // zwangslaeufig mit. Die Groesse ist die einzige Abweichung vom
+    // JavaFX-Standardaussehen, der Rest darf bleiben, wie das System es
+    // gewohnt ist.
+    hint.setStyle("-fx-font-size: 14px;");
+    link.setTooltip(hint);
 
     // Direkt hinter das TOTP-Feld, nicht ans Ende: der Verweis gehoert zum
     // Einmalkennwort und nicht zur Schaltflaeche darunter.

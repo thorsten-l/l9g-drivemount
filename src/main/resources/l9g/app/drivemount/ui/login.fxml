@@ -44,7 +44,7 @@
       <Label text="Netzlaufwerke verbinden" styleClass="title"/>
       <TextField fx:id="usernameField" promptText="Benutzername"/>
       <PasswordField fx:id="passwordField" promptText="Passwort"/>
-      <TextField fx:id="totpField" promptText="TOTP (6-stellig)"/>
+      <TextField fx:id="totpField" promptText="TOTP Code (6-stellig)"/>
       <Button fx:id="loginButton" text="Anmelden und verbinden" onAction="#onLogin"
               defaultButton="true" maxWidth="Infinity"/>
       <Label fx:id="statusLabel" styleClass="status" wrapText="true"/>

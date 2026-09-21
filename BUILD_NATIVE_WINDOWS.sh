@@ -168,7 +168,7 @@ if [[ -n "$SYNC" ]]; then
     --exclude='./target' --exclude='./.git' --exclude='./.idea' \
     --exclude='.DS_Store' \
     ./pom.xml ./mvnw ./mvnw.cmd ./.mvn \
-    ./src ./packaging ./*.sh ./*.ps1 ./*.md 2>/dev/null
+    ./src ./packaging ./*.sh ./*.ps1 ./*.md ./LICENSE 2>/dev/null
   echo "    $(du -h "$TARBALL" | cut -f1)"
 
   scp -q "$TARBALL" "$WIN_HOST:$WIN_STAGING/drivemount-src.tgz"
@@ -226,8 +226,18 @@ if [[ -n "$CHECK_ONLY" ]]; then
 fi
 
 echo "==> Build starten"
+# -CompanyName nur mitgeben, wenn ein Wert da ist. Ein leeres Argument
+# ueberlebt den Weg durch ssh und PowerShell nicht: die Anfuehrungszeichen
+# fallen unterwegs weg, uebrig bleibt ein Parameter ohne Wert, und
+# PowerShell bricht mit "Fehlendes Argument fuer den Parameter CompanyName"
+# ab. Das Skript drueben hat ohnehin '' als Vorgabe.
+COMPANY_ARG=""
+if [[ -n "$WIN_COMPANY_NAME" ]]; then
+  COMPANY_ARG="-CompanyName '$WIN_COMPANY_NAME'"
+fi
+
 ssh_win "powershell -NoProfile -ExecutionPolicy Bypass -File '$REMOTE_PS' \
   -NikHome '$WIN_NIK_HOME' -ProjectDir '$WIN_PROJECT' \
-  -CompanyName '$WIN_COMPANY_NAME' ${PS_ARGS[*]:-}"
+  $COMPANY_ARG ${PS_ARGS[*]:-}"
 
 fetch_binary

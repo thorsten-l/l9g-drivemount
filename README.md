@@ -144,6 +144,10 @@ Authenticator einrichten lässt, wenn das Einmalkennwort nicht mehr passt.
 Ohne die Einstellung erscheint der Verweis nicht; eine Installation ohne
 Selbstverwaltung soll nicht auf eine tote Seite zeigen.
 
+Ein Tooltip beantwortet beim Überfahren die Frage dahinter: „Solltest du
+noch keinen TOTP Code haben, erstelle dir einen unter
+'Authenticator-Anwendung einrichten'“.
+
 Geöffnet wird über die JavaFX-`HostServices`, die die Adresse an die
 Plattform weiterreichen: `LSOpenCFURLRef` (macOS, dieselbe Schnittstelle wie
 `open`), `ShellExecute` (Windows), `gtk_show_uri` (Linux). Nur wenn das

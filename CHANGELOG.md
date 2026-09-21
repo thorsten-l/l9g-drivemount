@@ -8,6 +8,37 @@ Die Zeilen sind aus dem Projektstand und den gebauten Paketen rekonstruiert —
 das Repository wurde erst am 21.09.2026 angelegt und hat für die Zeit davor
 keine Historie.
 
+## [1.1.2] — 2026-09-21
+
+Kleine Nachbesserungen an der Login-Maske aus 1.1.1, dazu zwei Korrekturen
+am Windows-Build. Keine Änderung an der Konfiguration.
+
+### Hinzugefügt
+
+- Tooltip am Verweis „Kontosicherheit verwalten“: „Solltest du noch keinen
+  TOTP Code haben, erstelle dir einen unter 'Authenticator-Anwendung
+  einrichten'“. Er beantwortet die Frage, die hinter dem Verweis steckt —
+  wer noch gar kein Einmalkennwort hat, findet dort den Weg dorthin.
+
+### Geändert
+
+- Der Platzhalter im TOTP-Feld heißt „TOTP Code (6-stellig)“ statt bisher
+  „TOTP (6-stellig)“.
+
+### Behoben
+
+- `BUILD_NATIVE_WINDOWS.sh` brach mit leerem `WIN_COMPANY_NAME` ab:
+  `-CompanyName ''` verliert auf dem Weg durch ssh und PowerShell seine
+  Anführungszeichen, übrig bleibt ein Parameter ohne Wert und damit
+  „Fehlendes Argument für den Parameter CompanyName“. Der Parameter wird
+  jetzt ganz weggelassen, wenn kein Wert gesetzt ist — das Skript auf dem
+  Windows-Rechner hat ohnehin die leere Zeichenkette als Vorgabe.
+- `BUILD_NATIVE_WINDOWS.sh` übertrug `LICENSE` nicht mit. Seit 1.1.0 kopiert
+  Maven die Datei als `assets/LICENSE` ins Artefakt, für das Lizenzfenster —
+  auf dem Windows-Rechner fehlte sie und das Paket hätte dort nur den
+  Ersatztext gezeigt. Aufgefallen ist es durch `LicenseResourceTest`, der
+  genau dafür da ist; das Linux-Skript hatte die Datei bereits dabei.
+
 ## [1.1.1] — 2026-09-21
 
 Eine Ergänzung in der Login-Maske, sonst unverändert gegenüber 1.1.0. Die
