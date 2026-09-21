@@ -8,7 +8,11 @@ Die Zeilen sind aus dem Projektstand und den gebauten Paketen rekonstruiert —
 das Repository wurde erst am 21.09.2026 angelegt und hat für die Zeit davor
 keine Historie.
 
-## [Unveröffentlicht] — 1.0.2
+## [Unveröffentlicht]
+
+Noch nichts.
+
+## [1.0.2] — 2026-09-21
 
 Die Versionsnummer wurde allein deshalb erhöht, damit sich die
 ausgelieferten Binaries auseinanderhalten lassen. Geändert hat sich die
