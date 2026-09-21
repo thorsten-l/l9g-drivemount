@@ -487,6 +487,10 @@ Die Symbole liegen fertig im Projekt (`packaging/drivemount.icns`,
       (und dort `BUILD_NATIVE_MACOS.sh` statt `mvn -Pnative native:compile` nutzen)
 - [x] LICENSE-Datei (Apache-2.0) ergänzt
 
+## Änderungen
+
+Was sich je Version geändert hat, steht in [`CHANGELOG.md`](CHANGELOG.md).
+
 ## Lizenz
 
 Apache-2.0 — © 2026 Thorsten Ludewig (t.ludewig@gmail.com)
