@@ -277,8 +277,13 @@ if [[ -n "$CREATE_APP" ]]; then
   <key>LSMinimumSystemVersion</key>             <string>11.0</string>
   <key>NSHighResolutionCapable</key>            <true/>
   <key>NSHumanReadableCopyright</key>           <string>Copyright 2026 Thorsten Ludewig</string>
-  <!-- MacosMounter ruft osascript mit "mount volume" auf; ohne diesen
-       Eintrag verweigert macOS die Automatisierung kommentarlos. -->
+  <!-- Ueberbleibsel aus der Zeit, als MacosMounter osascript mit
+       "mount volume" aufrief; ohne den Eintrag verweigerte macOS die
+       Automatisierung kommentarlos. Seit der Umstellung auf
+       NetFSMountURLSync (FFM) verschickt die Anwendung keine Apple Events
+       mehr - der Schluessel schadet nicht, kann aber beim naechsten
+       Eingriff in die Info.plist entfallen (kostet Signatur und
+       Notarisierung, deshalb nicht einzeln herausgenommen). -->
   <key>NSAppleEventsUsageDescription</key>
   <string>DriveMount verbindet die Netzlaufwerke ueber das Betriebssystem.</string>
 </dict>

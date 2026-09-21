@@ -11,14 +11,16 @@ import java.util.List;
  *
  * <p>Das Access Token selbst wird bewusst <b>nicht</b> aufbewahrt - nur die
  * drei Angaben, die fuer den Mount gebraucht werden. Das Token hat seinen
- * Zweck erfuellt, sobald Domaene und Share-Liste daraus gelesen sind; es
- * laenger zu halten hiesse nur, ein Geheimnis ohne Nutzen mitzuschleppen.</p>
+ * Zweck erfuellt, sobald die Domaene daraus gelesen ist; es laenger zu
+ * halten hiesse nur, ein Geheimnis ohne Nutzen mitzuschleppen.</p>
  *
  * @param username  Benutzername aus dem Login-Dialog, ohne Domaenenanteil
  * @param smbDomain AD-Domaene, aus dem Mail-Claim des Tokens abgeleitet -
  *                  pro Benutzer und nicht aus der Konfiguration
- * @param shares    zu verbindende Shares, entweder die statischen aus der
- *                  Konfiguration oder die aus dem optionalen Claim
+ * @param shares    zu verbindende Shares: die in der Konfiguration unter
+ *                  dieser Domaene hinterlegten. Leer, wenn die Domaene dort
+ *                  nicht vorkommt - dann bleibt das Fenster mit einem
+ *                  Hinweis offen
  */
 public record AuthResult(String username, String smbDomain,
   List<SmbShare> shares)

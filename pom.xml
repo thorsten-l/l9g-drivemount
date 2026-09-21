@@ -13,9 +13,9 @@
 
   <groupId>l9g.app</groupId>
   <artifactId>drivemount</artifactId>
-  <version>1.0.2</version>
+  <version>1.1.0</version>
   <name>L9G DriveMount</name>
-  <description>Cross-platform SMB drive mounter - Keycloak Direct Grant (Passwort + TOTP), Share-Liste aus Token-Claim</description>
+  <description>Cross-platform SMB drive mounter - Keycloak Direct Grant (Passwort + TOTP)</description>
 
   <licenses>
     <license>
@@ -100,13 +100,26 @@
 
     <resources>
       <!-- application.yaml.sample ist eine Vorlage fuer Einrichter und hat
-           im Artefakt nichts verloren - genau wie LICENSE, das deshalb
-           ausserhalb von src/main/resources liegt. -->
+           im Artefakt nichts verloren. -->
       <resource>
         <directory>src/main/resources</directory>
         <excludes>
           <exclude>**/*.sample</exclude>
         </excludes>
+      </resource>
+      <!-- LICENSE liegt im Projektverzeichnis und wird von hier aus nach
+           assets/LICENSE kopiert: das Lizenzfenster (Strg+Alt+L) liest genau
+           diese Ressource. Eine Kopie unter src/main/resources waere eine
+           zweite Wahrheit, die irgendwann auseinanderlaeuft.
+           Fuer das Native Image braucht die Datei zusaetzlich einen Eintrag
+           in der handgepflegten Metadatendatei - IncludeResources deckt nur
+           fxml|css|png|yaml|yml ab, und LICENSE hat keine Endung. -->
+      <resource>
+        <directory>${project.basedir}</directory>
+        <targetPath>assets</targetPath>
+        <includes>
+          <include>LICENSE</include>
+        </includes>
       </resource>
     </resources>
 

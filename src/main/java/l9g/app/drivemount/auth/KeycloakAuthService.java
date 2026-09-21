@@ -14,7 +14,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import l9g.app.drivemount.config.DrivemountProperties;
@@ -45,9 +44,9 @@ import org.springframework.stereotype.Service;
  * dieser Stelle etwas faelschen koennte, haette bereits die TLS-Verbindung
  * gebrochen - dann hilft auch die Signatur nicht mehr.</p>
  *
- * <p>Das Token wird ausserdem nicht aufbewahrt. Aus dem Payload werden
- * Domaene und Share-Liste gelesen, danach ist es unbrauchbar und wird
- * verworfen; im {@link AuthResult} steht es nicht.</p>
+ * <p>Das Token wird ausserdem nicht aufbewahrt. Aus dem Payload wird nur
+ * die Domaene gelesen, danach ist es unbrauchbar und wird verworfen; im
+ * {@link AuthResult} steht es nicht.</p>
  *
  * <h2>Was geloggt wird</h2>
  *
@@ -74,12 +73,20 @@ public class KeycloakAuthService
   /**
    * Konstruktorinjektion durch Spring.
    *
-   * @param props gebundene Konfiguration; liefert Endpunkt, Client-Daten und
-   *              die Namen der auszuwertenden Claims
+   * @param props gebundene Konfiguration; liefert Endpunkt, Client-Daten,
+   *              den Namen des Mail-Claims und die Shares je Domaene
    */
   public KeycloakAuthService(DrivemountProperties props)
   {
     this.props = props;
+    // Einmal beim Start: welche Domaenen kennt diese Konfiguration? Steht
+    // eine Domaene hier nicht drin, bekommt der Benutzer spaeter nichts
+    // verbunden - dann ist das die erste Zeile, die man sehen will. Nur
+    // Namen und Anzahl, keine Zugangsdaten.
+    LOG.info("Konfigurierte Domaenen: {}",
+      props.shares().entrySet().stream()
+        .map(e -> e.getKey() + " (" + e.getValue().size() + ")")
+        .toList());
   }
 
   /**
@@ -153,7 +160,7 @@ public class KeycloakAuthService
       String accessToken = body.path("access_token").asText();
       JsonNode claims = claims(accessToken);
       String domain = extractDomain(claims);
-      List<SmbShare> shares = extractShares(claims);
+      List<SmbShare> shares = sharesFor(domain);
       LOG.info("Angemeldet: Domaene '{}', {} Share(s) - {}", domain,
         shares.size(), shares.stream().map(SmbShare::label).toList());
       return new AuthResult(username, domain, shares);
@@ -176,7 +183,7 @@ public class KeycloakAuthService
    *
    * <p>Paketsichtbar und nicht privat, damit
    * {@code KeycloakAuthServiceTest} die Auswertung ohne Netz pruefen kann.
-   * Gilt auch fuer {@link #extractDomain} und {@link #extractShares}.</p>
+   * Gilt auch fuer {@link #extractDomain} und {@link #sharesFor}.</p>
    *
    * @param jwt das Access Token
    * @return die Claims, nie {@code null}
@@ -243,50 +250,34 @@ public class KeycloakAuthService
   }
 
   /**
-   * Liest die benutzerspezifische Share-Liste aus dem Token-Claim.
+   * Schlaegt die Shares der Domaene in der Konfiguration nach.
    *
-   * <p>Ist der Claim nicht konfiguriert, nicht vorhanden oder leer, gelten
-   * die statischen Shares aus der Konfiguration - der Regelfall, solange
-   * kein benutzerspezifisches LDAP-Attribut gepflegt ist.</p>
+   * <p>Die einzige Quelle. Frueher konnte ein optionaler Token-Claim
+   * ({@code smbShares}) eine benutzerspezifische Liste mitbringen und die
+   * Konfiguration ueberstimmen; der Weg ist entfallen, weil er nie
+   * scharfgeschaltet wurde und im Native Image eine eigene
+   * Jackson-Registrierung gebraucht haette.</p>
    *
-   * <p>Der Claim darf in zwei Formen ankommen, je nachdem wie der
-   * Protocol-Mapper eingestellt ist: als echtes JSON-Array oder als String,
-   * der ein Array enthaelt. Beides wird unterstuetzt, weil sich die
-   * Einstellung in der Keycloak-Oberflaeche leicht anders setzen laesst, als
-   * man denkt.</p>
+   * <p>Eine unbekannte Domaene ergibt eine leere Liste - siehe
+   * {@link DrivemountProperties#sharesFor}. Die Warnung hier nennt die
+   * bekannten Schluessel, damit im Log steht, wonach vergeblich gesucht
+   * wurde.</p>
    *
-   * <p>Hinweis fuer das Native Image: dieser Pfad ist von den
-   * Reachability-Metadaten <b>nicht</b> abgedeckt, weil
-   * {@code treeToValue} in keinem Agent-Lauf vorkam. Wer den Claim
-   * scharfschaltet, braucht vorher einen neuen Agent-Durchlauf.</p>
+   * <p>Paketsichtbar und nicht privat, damit
+   * {@code KeycloakAuthServiceTest} sie ohne Netz pruefen kann.</p>
    *
-   * @param claims dekodierter Token-Payload
-   * @return die Shares aus dem Claim, sonst die statischen aus der
-   *         Konfiguration
-   * @throws IOException wenn der Claim ein String ist, der kein gueltiges
-   *                     JSON enthaelt
+   * @param domain die aus dem Token abgeleitete AD-Domaene
+   * @return die Shares dieser Domaene, sonst eine leere Liste
    */
-  List<SmbShare> extractShares(JsonNode claims) throws IOException
+  List<SmbShare> sharesFor(String domain)
   {
-    JsonNode claim = props.sharesClaim() == null
-      ? mapper.missingNode() : claims.path(props.sharesClaim());
-
-    // Claim kann als JSON-Array oder als JSON-String (je nach
-    // Protocol-Mapper-Konfiguration) ankommen - beides unterstuetzen.
-    if (claim.isTextual())
+    List<SmbShare> configured = props.sharesFor(domain);
+    if (configured.isEmpty())
     {
-      claim = mapper.readTree(claim.asText());
+      LOG.warn("Keine Shares fuer Domaene '{}' konfiguriert - bekannt: {}",
+        domain, props.shares().keySet());
     }
-
-    List<SmbShare> shares = new ArrayList<>();
-    if (claim.isArray())
-    {
-      for (JsonNode node : claim)
-      {
-        shares.add(mapper.treeToValue(node, SmbShare.class));
-      }
-    }
-    return shares.isEmpty() ? props.shares() : List.copyOf(shares);
+    return configured;
   }
 
   /**

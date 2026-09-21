@@ -210,8 +210,12 @@ public class LoginController
         try
         {
           AuthResult auth = authService.authenticate(username, password, totp);
+          // Leere Liste heisst hier fast immer: fuer diese Domaene ist
+          // nichts konfiguriert. Den Namen mit anzeigen, sonst sucht
+          // niemand an der richtigen Stelle.
           updateMessage(auth.shares().isEmpty()
-            ? "Angemeldet - keine Laufwerke im Profil hinterlegt."
+            ? "Angemeldet - für die Domäne \"" + auth.smbDomain()
+            + "\" sind keine Laufwerke hinterlegt."
             : "Angemeldet - verbinde " + auth.shares().size()
             + " Laufwerk(e) ...");
 

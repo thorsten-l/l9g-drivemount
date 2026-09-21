@@ -18,7 +18,8 @@
 # ohne ein Fenster zu oeffnen. Fuer die Styling-Schleife: wenige Sekunden statt
 # rund einer Minute Native Build.
 #
-#   ./PREVIEW.sh                  rendern
+#   ./PREVIEW.sh                  Login-Maske rendern
+#   ./PREVIEW.sh --license        stattdessen das Lizenzfenster (Strg+Alt+L)
 #   ./PREVIEW.sh -o bild.png      anderes Ziel
 #   ./PREVIEW.sh --open           danach im Vorschau-Programm oeffnen (macOS)
 #
@@ -32,10 +33,12 @@ set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUT="$PROJECT_DIR/target/ui-preview.png"
 OPEN=""
+VIEW=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -o|--out)   OUT="$2"; shift 2 ;;
+    --license)  VIEW="license"; shift ;;
     --open)     OPEN=1; shift ;;
     -h|--help)  sed -n '/^# Rendert /,/^# Binary/p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unbekannte Option: $1 (siehe --help)" >&2; exit 2 ;;
@@ -55,7 +58,7 @@ fi
 # kopieren und UiPreview uebersetzen.
 mvn -q -o test-compile
 
-java "-Dpreview.out=$OUT" \
+java "-Dpreview.out=$OUT" "-Dpreview.view=$VIEW" \
   -cp "target/test-classes:target/classes:$(cat "$CP_FILE")" \
   l9g.app.drivemount.ui.UiPreview
 

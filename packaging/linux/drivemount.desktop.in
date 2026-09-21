@@ -8,7 +8,7 @@ Exec=@EXEC@
 Icon=drivemount
 Terminal=false
 Categories=Network;FileTransfer;Utility;
-Keywords=SMB;CIFS;Netzlaufwerk;Laufwerk;Mount;Keycloak;Ostfalia;
+Keywords=SMB;CIFS;Netzlaufwerk;Laufwerk;Mount;Keycloak;
 StartupNotify=true
 # Ohne diesen Eintrag ordnet die GNOME-Leiste das laufende Fenster dem
 # Starter nicht zu und zeigt daneben ein zweites, generisches Symbol.

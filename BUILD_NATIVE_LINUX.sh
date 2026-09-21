@@ -176,7 +176,7 @@ if [[ -n "$SYNC" ]]; then
     --exclude='./target' --exclude='./.git' --exclude='./.idea' \
     --exclude='.DS_Store' \
     ./pom.xml ./mvnw ./mvnw.cmd ./.mvn \
-    ./src ./packaging ./*.sh ./*.ps1 ./*.md ./LICENSE ./.github 2>/dev/null
+    ./src ./packaging ./*.sh ./*.ps1 ./*.md ./LICENSE 2>/dev/null
   echo "    $(du -h "$TARBALL" | cut -f1)"
 
   scp -q "$TARBALL" "$LINUX_HOST:/tmp/drivemount-src.tgz"

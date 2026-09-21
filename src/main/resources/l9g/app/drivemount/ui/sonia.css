@@ -152,3 +152,46 @@
   -fx-pref-height: 0;
   -fx-opacity: 0;
 }
+
+/*
+ * Lizenzfenster (Strg+Alt+L, macOS Ctrl+Option+L). Gleiche Karte wie die
+ * Login-Maske, nur hoeher und mitwachsend.
+ */
+
+/* Version, Copyright und Lizenzname ueber dem Text - Nebeninformation, also
+   kleiner und gedaempft wie die Statuszeile. */
+.license-meta
+{
+  -fx-text-fill: -sonia-muted;
+  -fx-font-size: 15px;
+}
+
+/* Der Lizenztext selbst. Feste Zeichenbreite, weil die Apache-Lizenz mit
+   Einrueckungen und einer zentrierten Ueberschrift arbeitet - in einer
+   Proportionalschrift zerfaellt das. 13px, damit die auf 77 Zeichen
+   umbrochenen Zeilen in der Breite Platz finden. */
+.license-text
+{
+  -fx-font-family: "Monospaced";
+  -fx-font-size: 13px;
+  -fx-text-fill: -sonia-heading;
+  -fx-background-color: -sonia-border, white;
+  -fx-background-insets: 0, 1;
+  -fx-background-radius: 8;
+  -fx-padding: 0;
+}
+
+/* Der Inhaltsbereich der TextArea liegt in einem eigenen Knoten und bringt
+   seine eigene weisse Flaeche mit; ohne diese Regel deckt sie die abgerundete
+   Ecke der Umrandung wieder zu. */
+.license-text .content
+{
+  -fx-background-color: white;
+  -fx-background-radius: 7;
+  -fx-padding: 10 12 10 12;
+}
+
+.license-text:focused
+{
+  -fx-background-color: -sonia-blue, white;
+}

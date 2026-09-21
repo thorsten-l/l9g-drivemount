@@ -46,18 +46,18 @@ drivemount:
     # Login durch Passwort + TOTP.
     client-secret: "{AES256}HIER_DEN_VERSCHLUESSELTEN_WERT_EINTRAGEN"
 
-  # Optionaler Claim mit einer benutzerspezifischen Share-Liste. Fehlt er oder
-  # ist er leer, gelten die statischen Shares weiter unten. Ist er vorhanden,
-  # gewinnt er. Erlaubt ist ein JSON-Array oder ein String, der eines enthaelt.
-  shares-claim: smbShares
-
   # Aus dieser Mailadresse wird die AD-Domaene abgeleitet: Teil hinter dem
   # "@" ohne TLD, also "vorname.nachname@example.org" -> "example".
   # Keycloak liefert den Standard-Claim "email" nur mit scope=openid email;
   # "mail" wird als Alternative ebenfalls geprueft.
+  #
+  # Dieselbe Domaene waehlt weiter unten den passenden Block aus "shares"
+  # aus - sie ist zugleich der Domaenenanteil der Anmeldung am Fileserver.
   mail-claim: email
 
-  # Fallback, falls im Token keine Mailadresse steht.
+  # Fallback, falls im Token keine Mailadresse steht. Muss unten ebenfalls
+  # einen Block unter "shares" haben, sonst gibt es fuer solche Benutzer
+  # nichts zu verbinden.
   smb-domain: example
 
   # Wartezeit, bevor sich das Fenster nach erfolgreichem Verbinden ALLER
@@ -65,14 +65,29 @@ drivemount:
   # "0" schliesst sofort; bei Fehlern bleibt das Fenster ohnehin offen.
   close-delay: 2s
 
-  # Statische Shares - existieren fuer alle Benutzer. Der Benutzername kommt
-  # aus dem Login-Dialog, die Domaene aus dem Mail-Claim; zusammen ergibt das
-  # die Anmeldung "example\<user>" am Fileserver.
-  # "mount" ist der Windows-Laufwerksbuchstabe; unter macOS/Linux ignoriert.
+  # Statische Shares, gruppiert nach AD-Domaene. Der Schluessel ist genau
+  # das, was oben aus der Mailadresse abgeleitet wird: Teil hinter dem "@"
+  # ohne TLD. Aus "a@example.org" wird "example", aus "b@example-zwei.de"
+  # wird "example-zwei" - der Bindestrich gehoert dazu, nur die Endung faellt
+  # weg. Gross-/Kleinschreibung spielt keine Rolle.
+  #
+  # Der Benutzername kommt aus dem Login-Dialog, die Domaene aus dem
+  # Mail-Claim; zusammen ergibt das die Anmeldung "example\<user>" am
+  # Fileserver. "mount" ist der Windows-Laufwerksbuchstabe; unter
+  # macOS/Linux ignoriert.
+  #
+  # Meldet sich jemand aus einer Domaene an, die hier nicht steht, wird
+  # nichts verbunden und das Fenster bleibt mit einem Hinweis offen. Das ist
+  # Absicht - lieber gar keine Laufwerke als die einer fremden Domaene.
   shares:
-    - label: User Home
-      url: smb://fileserver.example.org/home
-      mount: H
-    - label: Group Share
-      url: smb://fileserver.example.org/group
-      mount: G
+    example:
+      - label: User Home
+        url: smb://fileserver.example.org/home
+        mount: H
+      - label: Group Share
+        url: smb://fileserver.example.org/group
+        mount: G
+    example-zwei:
+      - label: User Home
+        url: smb://fileserver.example-zwei.org/home
+        mount: H

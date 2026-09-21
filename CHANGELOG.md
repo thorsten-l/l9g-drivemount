@@ -8,9 +8,103 @@ Die Zeilen sind aus dem Projektstand und den gebauten Paketen rekonstruiert —
 das Repository wurde erst am 21.09.2026 angelegt und hat für die Zeit davor
 keine Historie.
 
-## [Unveröffentlicht]
+## [1.1.0] — 2026-09-21
 
-Noch nichts.
+Die erste Version, die mit einer Installation **mehrere AD-Domänen** bedient
+— daher der Sprung auf 1.1.0 und nicht auf 1.0.3. Aus dem Token kommt nur
+noch die Domäne; welche Laufwerke sie bekommt, steht ausschließlich in der
+Konfiguration.
+
+**Umstieg von 1.0.x:** `drivemount.shares` muss umgeschrieben werden, aus der
+flachen Liste wird eine Zuordnung *Domäne → Liste* (Beispiel in
+`application.yaml.sample` und in der README unter *Shares*). Wird die alte
+Form stehengelassen, scheitert
+schon das Binden der Konfiguration. Ein neues Binary ist ohnehin nötig: die
+`application.yaml` wird ins Artefakt eingebaut.
+
+Dazu ein sichtbarer Zusatz — das Lizenzfenster auf Strg+Alt+L — und ein
+behobener Fehler im macOS-Binary, der bei jeder Trackpad-Geste Stacktraces
+auf die Konsole schrieb.
+
+### Hinzugefügt
+
+- **Shares je AD-Domäne.** `drivemount.shares` ist jetzt eine Zuordnung
+  *Domäne → Liste von Shares* statt einer flachen Liste. Welcher Block gilt,
+  entscheidet die aus dem Mail-Claim abgeleitete Domäne (`a@example-zwei.de`
+  → `example-zwei`). Damit bedient eine Installation mehrere Mandanten, ohne
+  dass je Domäne ein eigenes Binary nötig wäre. Die Schlüssel sind
+  groß-/kleinschreibungsunabhängig; zwei Schlüssel, die sich nur darin
+  unterscheiden, brechen den Start ab, statt stillschweigend einer Domäne
+  die falschen Laufwerke zu geben. Beim Start protokolliert die Anwendung
+  `Konfigurierte Domaenen: [example (2), …]`.
+
+  ⚠️ **Konfigurationsänderung**: eine `application.yaml` im alten Format
+  (Shares als flache Liste) bindet nicht mehr. Siehe
+  `application.yaml.sample`.
+- **Lizenzfenster.** Bei sichtbarer Login-Maske öffnet **Strg+Alt+L**
+  (unter macOS Ctrl+Option+L) ein Fenster mit Copyright und dem
+  vollständigen, scrollbaren Text der Apache License 2.0; `Esc` oder
+  „Schließen“ beendet es. Der Text stammt aus `assets/LICENSE` im Artefakt —
+  einer Kopie der Datei `LICENSE`, die Maven beim Bauen anlegt, damit es die
+  Lizenz nur einmal gibt. Ohne Schaltfläche in der Maske, damit die Karte
+  weiterhin nur die Anmeldung zeigt.
+- `./PREVIEW.sh --license` rendert dieses Fenster in eine PNG-Datei, wie die
+  Vorschau es schon für die Login-Maske tut.
+- `application.yaml.sample` zeigt die neue Struktur mit zwei Beispieldomänen
+  und erklärt die Ableitungsregel an einem Namen mit Bindestrich.
+- Acht weitere Tests: die Domänen-Zuordnung (Schreibweise, Bindestrich,
+  unbekannte Domäne, doppelte Schlüssel, unveränderliche Listen) und ein
+  Wächter dafür, dass `assets/LICENSE` wirklich im Klassenpfad liegt —
+  ohne ihn zeigte das Lizenzfenster lautlos nur den Ersatztext. Insgesamt
+  54, weiterhin ohne Bildschirm und ohne Netz.
+
+### Geändert
+
+- Meldet sich jemand aus einer Domäne an, für die nichts konfiguriert ist,
+  nennt die Statuszeile jetzt diese Domäne („Angemeldet – für die Domäne
+  „x“ sind keine Laufwerke hinterlegt.“) und das Log die bekannten
+  Schlüssel. Vorher stand dort nur „keine Laufwerke im Profil hinterlegt“ —
+  richtig, aber niemand wusste, wo zu suchen war.
+- Der Linux-Starter führt `Ostfalia` nicht mehr als Suchbegriff
+  (`Keywords=` in `drivemount.desktop`), und `WIN_COMPANY_NAME` ist in
+  `env.sample` leer vorgegeben: die EXE ist nicht signiert, ein
+  Herausgebername in den Dateieigenschaften wäre eine Behauptung, die
+  niemand prüfen kann. Damit steht in den veröffentlichten Dateien kein
+  Organisationsname mehr.
+- `distrib/README.md` ist wieder versioniert. Die `.gitignore` schloss
+  `distrib/` als ganzes Verzeichnis aus; in ein ausgeschlossenes Verzeichnis
+  steigt git gar nicht erst hinab, die Ausnahme `!/distrib/README.md` lief
+  deshalb ins Leere. Die Anwendungspakete bleiben ausgeschlossen.
+
+### Entfernt
+
+- Der optionale Token-Claim `smbShares` samt Einstellung `shares-claim`. Er
+  war nie scharfgeschaltet, hätte im Native Image eine eigene
+  Jackson-Registrierung gebraucht (`treeToValue` kam in keinem Agent-Lauf
+  vor) und ist durch die Zuordnung je Domäne überflüssig geworden. `SmbShare`
+  verliert damit auch seine Jackson-Annotation und wird nur noch vom
+  Spring-Konfigurationsbinder gefüllt.
+- Der GitHub-Workflow `.github/workflows/native-build.yml`. Er ist nie
+  erfolgreich durchgelaufen: `setup-graalvm` installiert mit
+  `distribution: liberica` die Standard-Variante ohne LibericaFX, worauf
+  `native-image` mit `Module javafx.fxml not found` abbricht. Gebaut wird
+  weiterhin auf eigenen Rechnern über `./BUILD_ALL_APPS.sh`. Was ein neuer
+  Anlauf beachten müsste, steht in CLAUDE.md unter „Kein CI“.
+  `BUILD_NATIVE_WINDOWS.sh` und `BUILD_NATIVE_LINUX.sh` packen `./.github`
+  nicht mehr mit ein — der fehlende Pfad ließ `tar` mit Exit 1 abbrechen und
+  damit den ganzen Remote-Build, wegen `2>/dev/null` ohne jede Meldung.
+
+### Behoben
+
+- Unter macOS warf das Native Image bei jeder Trackpad-Geste über dem
+  Fenster eine `ClassNotFoundException:
+  com.sun.glass.ui.mac.MacGestureSupport` auf den JavaFX Application Thread
+  — sichtbar als Stapel von Stacktraces auf der Konsole, ohne dass die
+  Anwendung selbst gestört war (Anmeldung und Mounts liefen weiter). Die
+  Glass-Bibliothek lädt diese Klasse aus nativem Code per Namen; im Image
+  muss sie dafür registriert sein. Nachgetragen in der handgepflegten
+  Metadatendatei. Betrifft nur das native Binary, nicht den Start über die
+  JVM.
 
 ## [1.0.2] — 2026-09-21
 

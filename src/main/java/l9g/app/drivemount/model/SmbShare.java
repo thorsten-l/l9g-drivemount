@@ -4,23 +4,20 @@
  */
 package l9g.app.drivemount.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
 /**
  * Ein zu verbindendes SMB-Share.
  *
- * <p>Dieselbe Form dient zwei Quellen: den statischen Shares aus
- * {@code drivemount.shares} in der Konfiguration und dem optionalen
- * Token-Claim {@code smbShares}. Deshalb die Jackson-Annotation - aus dem
- * Claim kommt JSON, und unbekannte Felder darin sollen den Start nicht
- * verhindern.</p>
+ * <p>Einzige Quelle ist {@code drivemount.shares} in der Konfiguration,
+ * nach AD-Domaene gruppiert. Frueher konnte derselbe Record auch aus dem
+ * Token-Claim {@code smbShares} kommen; dafuer trug er eine
+ * Jackson-Annotation, die mit dem Claim entfallen ist. Gebunden wird er
+ * jetzt ausschliesslich vom Spring-Konfigurationsbinder.</p>
  *
  * @param label Anzeigename in der Ergebnisliste ("User Home", "Group Share")
  * @param url   Adresse der Freigabe, {@code smb://host/share[/pfad]}
  * @param mount Windows-Laufwerksbuchstabe ("H"); unter macOS und Linux ohne
  *              Bedeutung und dort auch leer oder {@code null} erlaubt
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
 public record SmbShare(String label, String url, String mount)
 {
   /**

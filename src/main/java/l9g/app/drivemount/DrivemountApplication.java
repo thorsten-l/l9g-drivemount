@@ -9,10 +9,12 @@ import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import l9g.app.drivemount.ui.LicenseDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.context.ConfigurableApplicationContext;
 
 /**
@@ -82,6 +84,10 @@ public class DrivemountApplication extends Application
    * Wurzelelements an, und die quadratische Form laesst den gestalteten
    * Hintergrund neben der Karte ueberhaupt erst sichtbar werden.</p>
    *
+   * <p>Hier haengt auch die einzige versteckte Funktion der Maske:
+   * {@link LicenseDialog#install(Scene, String)} legt Strg+Alt+L auf die
+   * Szene, was das Lizenzfenster oeffnet.</p>
+   *
    * @param stage das von JavaFX bereitgestellte Hauptfenster
    * @throws Exception wenn FXML oder Stylesheet nicht geladen werden koennen
    */
@@ -97,6 +103,15 @@ public class DrivemountApplication extends Application
     // Native Image registriert werden muesste.
     scene.getStylesheets().add(getClass()
       .getResource("/l9g/app/drivemount/ui/sonia.css").toExternalForm());
+
+    // Strg+Alt+L (macOS: Ctrl+Option+L) oeffnet das Lizenzfenster. Die
+    // Version kommt ueber einen ObjectProvider, weil BuildProperties nur
+    // existiert, wenn META-INF/build-info.properties erzeugt wurde - ohne
+    // Maven-Lauf bleibt die Zeile eben ohne Versionsnummer.
+    BuildProperties build
+      = context.getBeanProvider(BuildProperties.class).getIfAvailable();
+    LicenseDialog.install(scene, build != null ? build.getVersion() : null);
+
     stage.setScene(scene);
     stage.setTitle("drivemount");
     stage.setResizable(false);

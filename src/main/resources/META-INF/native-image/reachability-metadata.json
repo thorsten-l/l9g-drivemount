@@ -1688,9 +1688,8 @@
             "l9g.app.drivemount.config.DrivemountProperties$Keycloak",
             "java.lang.String",
             "java.lang.String",
-            "java.lang.String",
             "java.time.Duration",
-            "java.util.List"
+            "java.util.Map"
           ]
         }
       ]

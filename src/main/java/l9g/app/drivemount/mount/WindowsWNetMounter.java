@@ -158,9 +158,10 @@ public class WindowsWNetMounter implements Mounter
       netResource.set(ValueLayout.JAVA_INT, 12, 0);                // dwUsage
 
       // Ohne Laufwerksbuchstaben wird lpLocalName NULL - Windows verbindet
-      // den Share dann ohne Zuordnung ("deviceless connection"). Genau das
-      // passiert bei Shares, die aus dem optionalen Token-Claim kommen und
-      // kein "mount" mitbringen.
+      // den Share dann ohne Zuordnung ("deviceless connection"). Das
+      // passiert bei jedem Share, dessen Konfiguration kein "mount"
+      // angibt - unter macOS und Linux ist der Buchstabe bedeutungslos,
+      // eine gemeinsame Konfiguration laesst ihn dort also gern weg.
       boolean hasDriveLetter = share.mount() != null
         && !share.mount().isBlank();
       MemorySegment localName = hasDriveLetter

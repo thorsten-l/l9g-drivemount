@@ -20,9 +20,11 @@ import javax.imageio.ImageIO;
 import l9g.app.drivemount.DrivemountSpring;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.ConfigurableApplicationContext;
 
 /**
- * Entwicklungswerkzeug: rendert login.fxml samt sonia.css in eine PNG-Datei,
+ * Entwicklungswerkzeug: rendert login.fxml samt sonia.css - oder mit
+ * -Dpreview.view=license das Lizenzfenster - in eine PNG-Datei,
  * ohne ein Fenster zu zeigen. Gedacht fuer die Styling-Schleife - ein Durchlauf
  * dauert wenige Sekunden, ein Native Build rund eine Minute.
  *
@@ -49,15 +51,49 @@ public final class UiPreview
 
   public static class PreviewApp extends Application
   {
+    /** Nur bei der Login-Maske gesetzt; das Lizenzfenster braucht ihn nicht. */
+    private ConfigurableApplicationContext context;
+
   @Override
   public void start(Stage stage) throws Exception
+  {
+    // -Dpreview.view=license rendert das Lizenzfenster statt der Login-Maske
+    // (./PREVIEW.sh --license). Es braucht weder Spring noch FXML - der
+    // Inhalt entsteht in LicenseDialog#createContent, hier sichtbar, weil
+    // diese Klasse im selben Paket liegt.
+    boolean license = "license".equals(System.getProperty("preview.view"));
+
+    Scene scene = license ? licenseScene() : loginScene();
+    Region root = (Region)scene.getRoot();
+    scene.getStylesheets().add(getClass()
+      .getResource("/l9g/app/drivemount/ui/sonia.css").toExternalForm());
+    // Ohne diese beiden Aufrufe kommt ein ungelayoutetes Bild heraus.
+    root.applyCss();
+    root.layout();
+
+    File out = new File(System.getProperty("preview.out", "ui-preview.png"));
+    ImageIO.write(toBufferedImage(scene.snapshot(null)), "png", out);
+    System.out.println("Vorschau: " + out.getAbsolutePath());
+
+    if(context != null)
+    {
+      context.close();
+    }
+    Platform.exit();
+  }
+
+  /**
+   * Die Login-Maske aus FXML - mit Spring-Kontext, weil der FXMLLoader seinen
+   * Controller von dort bezieht.
+   */
+  private Scene loginScene() throws Exception
   {
     // Dritter Einstiegspunkt neben Launcher und DrivemountSpring#main: auch
     // hier muss der mitgelieferte Schluessel gesetzt sein, sonst scheitert die
     // Entschluesselung der {AES256}-Werte beim Kontextstart.
     DrivemountSpring.pointToBundledSecret();
 
-    var context = new SpringApplicationBuilder(DrivemountSpring.class)
+    context = new SpringApplicationBuilder(DrivemountSpring.class)
       .web(WebApplicationType.NONE)
       .headless(false)
       .run();
@@ -72,19 +108,20 @@ public final class UiPreview
       fillSampleContent(loader);
     }
 
-    Scene scene = new Scene(root);
-    scene.getStylesheets().add(getClass()
-      .getResource("/l9g/app/drivemount/ui/sonia.css").toExternalForm());
-    // Ohne diese beiden Aufrufe kommt ein ungelayoutetes Bild heraus.
-    root.applyCss();
-    root.layout();
+    return new Scene(root);
+  }
 
-    File out = new File(System.getProperty("preview.out", "ui-preview.png"));
-    ImageIO.write(toBufferedImage(scene.snapshot(null)), "png", out);
-    System.out.println("Vorschau: " + out.getAbsolutePath());
-
-    context.close();
-    Platform.exit();
+  /**
+   * Das Lizenzfenster in derselben Groesse, die {@code LicenseDialog#show}
+   * seiner Buehne gibt.
+   */
+  private Scene licenseScene()
+  {
+    return new Scene(
+      LicenseDialog.createContent(
+        System.getProperty("preview.version", "0.0.0-preview"), () ->
+      {
+      }), 760, 700);
   }
 
   /**

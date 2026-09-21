@@ -1,9 +1,10 @@
 # drivemount
 
 Plattformübergreifender SMB-Laufwerks-Mounter (Linux, macOS, Windows) mit
-MFA-Gate: Anmeldung per **Keycloak Direct Grant** (Passwort + TOTP), die zu
-verbindenden Shares kommen als **Claim aus dem Access Token** (Quelle: LDAP),
-gemountet wird mit denselben Credentials über die jeweilige Plattform-API.
+MFA-Gate: Anmeldung per **Keycloak Direct Grant** (Passwort + TOTP). Aus der
+Mailadresse im Access Token ergibt sich die **AD-Domäne**, und die wählt den
+passenden Block aus `drivemount.shares`; gemountet wird mit denselben
+Credentials über die jeweilige Plattform-API.
 
 Stack: Java 25, Spring Boot (Kontext/DI/Config, ohne Web), JavaFX (UI),
 GraalVM Native Image via **Liberica NIK Full** (enthält LibericaFX).
@@ -15,9 +16,12 @@ GraalVM Native Image via **Liberica NIK Full** (enthält LibericaFX).
    `grant_type=password` + `totp` (Direct-Grant-Flow mit OTP=Required)
 3. Bei 200: aus dem Access Token die Mailadresse (`email`) lesen und daraus
    die AD-Domäne ableiten, Token verwerfen
-4. Shares mit `<Domäne>\<Benutzer>` und Passwort mounten
-   (WNetAddConnection2W / NetFS bzw. osascript / gio)
-5. Sind **alle** Laufwerke verbunden, schließt sich das Fenster nach
+4. Zu dieser Domäne die konfigurierten Shares nachschlagen — steht sie nicht
+   in `drivemount.shares`, gibt es nichts zu verbinden und das Fenster bleibt
+   mit einem Hinweis offen
+5. Shares mit `<Domäne>\<Benutzer>` und Passwort mounten
+   (`WNetAddConnection2W` / `NetFSMountURLSync` / `gio mount`)
+6. Sind **alle** Laufwerke verbunden, schließt sich das Fenster nach
    `drivemount.close-delay` (Default `2s`) von selbst. Bei Fehlern bleibt
    es offen, damit die Ergebnisliste lesbar bleibt.
 
@@ -33,40 +37,47 @@ GraalVM Native Image via **Liberica NIK Full** (enthält LibericaFX).
 3. **Claim**: Es genügt der Standard-Scope `email` — die App fordert ihn an
    und leitet daraus die AD-Domäne ab (Teil hinter dem `@` ohne TLD, also
    `vorname.nachname@example.org` → `example`). Ein eigener Protocol-Mapper ist
-   dafür nicht nötig.
+   dafür nicht nötig, und mehr als diesen einen Claim wertet die App nicht
+   aus: welche Shares jemand bekommt, steht in der Konfiguration, nicht im
+   Token.
 
-   Optional lässt sich zusätzlich eine **benutzerspezifische** Share-Liste
-   als Claim ausliefern (LDAP-Attribut per *user-attribute-ldap-mapper*,
-   dann *User Attribute → Token Claim* in einem dedizierten Client Scope).
-   Ist der Claim vorhanden, ersetzt er die statischen Shares. Format
-   (JSON-Array direkt oder als String — beides wird geparst):
-
-   ```json
-   [
-     { "label": "Projekt", "url": "smb://fs2.example.org/projekte/rz", "mount": "P" }
-   ]
-   ```
-
-   `mount` = Windows-Laufwerksbuchstabe, auf macOS/Linux ignoriert.
-
-Schnelltest ohne App:
+Schnelltest ohne App — liefert die Mailadresse, aus der die Domäne entsteht:
 
 ```bash
 curl -s -X POST "$KC/realms/$REALM/protocol/openid-connect/token" \
   -d grant_type=password -d client_id=drivemount -d client_secret=$SECRET \
+  -d scope="openid email" \
   --data-urlencode "username=$USER" --data-urlencode "password=$PASS" \
-  -d totp=123456 | jq -r .access_token | cut -d. -f2 | base64 -d | jq .smbShares
+  -d totp=123456 | jq -r .access_token | cut -d. -f2 | base64 -d | jq .email
 ```
 
 ## Shares
 
-Zwei statische Shares, die für alle Benutzer existieren (in
-`application.yaml` unter `drivemount.shares`):
+Die Shares stehen in `application.yaml` unter `drivemount.shares`,
+**gruppiert nach AD-Domäne**. Der Schlüssel ist genau das, was die App aus
+der Mailadresse ableitet: der Teil hinter dem `@` ohne die letzte Endung —
+aus `a@example.org` wird `example`, aus `b@example-zwei.de` wird
+`example-zwei` — der Bindestrich gehört dazu, nur die letzte Endung fällt
+weg. Groß-/Kleinschreibung spielt keine Rolle; die
+Schlüssel werden beim Binden kleingeschrieben, und zwei Schlüssel, die sich
+nur darin unterscheiden, brechen den Start ab, statt stillschweigend einer
+Domäne die falschen Laufwerke zu geben.
 
-| Label | URL | Laufwerk (Windows) |
-|---|---|---|
-| User Home | `smb://fileserver.example.org/home` | `H:` |
-| Group Share | `smb://fileserver.example.org/group` | `G:` |
+```yaml
+drivemount:
+  shares:
+    example:
+      - label: User Home
+        url: smb://fileserver.example.org/home
+        mount: H
+      - label: Group Share
+        url: smb://fileserver.example.org/group
+        mount: G
+    example-zwei:
+      - label: User Home
+        url: smb://fileserver.example-zwei.org/home
+        mount: H
+```
 
 Angemeldet wird mit `<Domäne>\<Benutzer>` — Benutzername aus dem
 Login-Dialog, Domäne aus dem `email`-Claim. Für `muster` mit
@@ -75,6 +86,19 @@ Login-Dialog, Domäne aus dem `email`-Claim. Für `muster` mit
 
 `mount` ist der Windows-Laufwerksbuchstabe und wird unter macOS/Linux
 ignoriert — dort landen die Shares unter `/Volumes` bzw. im gvfs-Pfad.
+
+Kommt jemand aus einer Domäne, die nicht konfiguriert ist, wird **nichts**
+verbunden: die Statuszeile nennt die Domäne, das Fenster bleibt offen, und
+im Log steht `Keine Shares fuer Domaene '<x>' konfiguriert - bekannt: [...]`.
+Lieber gar keine Laufwerke als die einer fremden Domäne. Welche Domänen eine
+Installation kennt, sagt die Anwendung außerdem beim Start:
+
+```
+Konfigurierte Domaenen: [example (2), example-zwei (1)]
+```
+
+`smb-domain` ist nur der Rückfall, wenn im Token gar keine Mailadresse
+steht; auch dieser Name braucht dann einen eigenen Block unter `shares`.
 
 `drivemount.close-delay` steuert, wie lange das Fenster nach erfolgreichem
 Verbinden stehen bleibt (`2s`, `500ms`, `0` für sofort). Zum Ausprobieren
@@ -106,8 +130,27 @@ in rund drei Sekunden nach `target/ui-preview.png`, ohne ein Fenster zu
 
 ```bash
 ./PREVIEW.sh --open      # rendern und (macOS) gleich anzeigen
+./PREVIEW.sh --license   # statt der Maske das Lizenzfenster
 mvn javafx:run           # oder interaktiv ausprobieren
 ```
+
+### Lizenzfenster
+
+Solange die Login-Maske sichtbar ist, öffnet **Strg+Alt+L** (unter macOS
+Ctrl+Option+L) ein Fenster mit Copyright und dem vollständigen, scrollbaren
+Text der Apache License 2.0; `Esc` oder „Schließen“ beendet es wieder. Es
+gibt bewusst keine Schaltfläche dafür in der Maske — die Karte soll die
+Anmeldung zeigen.
+
+Der Text kommt aus `assets/LICENSE` im Artefakt. Diese Ressource ist eine
+Kopie der Datei `LICENSE` im Projektverzeichnis, die Maven beim Bauen anlegt
+(`<resource>` mit `targetPath` in der `pom.xml`) — damit es die Lizenz genau
+einmal gibt und der angezeigte Text nicht vom beiliegenden abweichen kann.
+Fürs Native Image steht sie zusätzlich in der handgepflegten
+Metadatendatei: `-H:IncludeResources` deckt nur `fxml|css|png|yaml|yml` ab,
+und `LICENSE` hat nicht einmal eine Endung. `LicenseResourceTest` prüft, dass
+sie tatsächlich im Klassenpfad liegt — fehlt sie, zeigt das Fenster sonst
+lautlos nur einen Ersatztext mit der Adresse der Lizenz.
 
 ⚠️ Die JVM verzeiht fehlende Reflection-Metadaten, das Native Image nicht.
 Nach FXML- oder CSS-Änderungen deshalb zum Abschluss einmal
@@ -197,16 +240,18 @@ die CA muss also schon beim Bauen in `$NIK_HOME/lib/security/cacerts` liegen.
 Verifiziert: mit importierter CA meldet das Binary bei falschen Zugangsdaten
 `Invalid user credentials` (TLS stand also), ohne sie den PKIX-Fehler.
 
-Konsequenz fuer die CI: bindet man wieder gegen einen Host mit privater CA,
-braucht der Runner dieselbe CA in seinem JDK, sonst entsteht ein Binary, das
-den Token-Endpoint nicht erreicht. Fuer `idp.example.org` entfaellt das.
+Konsequenz: bindet man wieder gegen einen Host mit privater CA, braucht
+**jeder** Build-Rechner dieselbe CA in seinem JDK, sonst entsteht dort ein
+Binary, das den Token-Endpoint nicht erreicht. Fuer `idp.example.org`
+entfaellt das.
 
 ## Native Build
 
 Voraussetzung: **Liberica NIK Full** (mit LibericaFX) als `JAVA_HOME`;
 Windows zusätzlich Visual Studio Build Tools (`cl.exe` im Pfad). Kein
-Cross-Compiling — pro Zielplattform bauen (CI-Matrix liegt unter
-`.github/workflows/native-build.yml`).
+Cross-Compiling — pro Zielplattform bauen. Gebaut wird auf eigenen Rechnern,
+es gibt **keine CI**; den Ablauf über alle drei Plattformen fasst
+`./BUILD_ALL_APPS.sh` zusammen.
 
 ```bash
 # 1. Reachability-Metadaten erzeugen: startet die App mit dem Tracing-Agent.
@@ -339,7 +384,7 @@ an einer Kommentarregel zerbrechen.
 | `WIN_PROJECT` · `LINUX_PROJECT` | Projektverzeichnis auf dem Build-Rechner |
 | `WIN_STAGING` | Ablage für übertragene Archive (mit Schrägstrichen) |
 | `WIN_NIK_HOME` · `LINUX_NIK_HOME` | Liberica NIK Full drüben |
-| `WIN_COMPANY_NAME` | `CompanyName` in den Versionsinfos der EXE |
+| `WIN_COMPANY_NAME` | `CompanyName` in den Versionsinfos der EXE; leer lassen, solange die EXE nicht signiert ist |
 
 `.env` wird **nicht** auf die Build-Rechner übertragen — die Tarballs
 enthalten nur Quellen, Skripte und Packaging. Drüben greifen deshalb die
@@ -428,8 +473,16 @@ Die Symbole liegen fertig im Projekt (`packaging/drivemount.icns`,
       (EAUTH)`, ohne Systemdialog. Windows: nach 7,0 s `Anmeldedaten abgelehnt
       (86)` — der Fileserver antwortet mit `ERROR_INVALID_PASSWORD`, **nicht**
       mit 1326, auch wenn der Benutzername der Fehler war
-- [x] Erste Tests: 40 Stück für die reinen Funktionen (uncPath, Claim-
-      Auswertung, beide Fehlertabellen, TOTP-Regel); laufen im Build mit
+- [x] Tests für die reinen Funktionen (uncPath, Domänenableitung aus dem
+      Mail-Claim, Share-Zuordnung je Domäne, beide Fehlertabellen,
+      TOTP-Regel, Lizenzressource); inzwischen 54 Stück, laufen im Build mit
+- [x] Shares werden **je AD-Domäne** konfiguriert (`drivemount.shares` als
+      Zuordnung Domäne → Liste). Damit bedient eine Installation mehrere
+      Mandanten; eine unbekannte Domäne bekommt bewusst nichts
+- [x] Der optionale Token-Claim `smbShares` ist entfallen — er war nie
+      scharfgeschaltet, hätte im Native Image eine eigene
+      Jackson-Registrierung gebraucht und wurde durch die Zuordnung je
+      Domäne überflüssig
 - [x] `WindowsWNetMounter`: Fehlercodes in Klartext (5, 53, 67, 85, 86, 1200,
       1202, 1219, 1326, 1330, 2250)
 - [ ] `WindowsWNetMounter`: `WNetCancelConnection2W` (Trennen),
@@ -473,8 +526,8 @@ Die Symbole liegen fertig im Projekt (`packaging/drivemount.icns`,
       Zielplattform
 - [x] Mount gegen `fileserver.example.org` erfolgreich (macOS, Anmeldung als
       `example\<user>`)
-- [ ] Rollout: interne Root CA muss auf Build-Host **und** CI-Runner im
-      JDK-Truststore liegen (siehe „TLS: interne CA“)
+- [ ] Rollout: interne Root CA muss auf jedem Build-Host im JDK-Truststore
+      liegen (siehe „TLS: interne CA“)
 - [x] Client-Secret: verschlüsselt (`{AES256}`, Schlüssel als
       `assets/secret.bin` im Artefakt). Umstellung auf einen **public client**
       wurde geprüft und bewusst verworfen — der Client bleibt confidential,
@@ -482,10 +535,16 @@ Die Symbole liegen fertig im Projekt (`packaging/drivemount.icns`,
       Krypto-Bibliothek soll drin bleiben (für andere verschlüsselte Werte)
       und `client-secret` ein optionales Feld werden, damit beide Client-Typen
       per Konfiguration funktionieren
-- [ ] Signing/Notarization (macOS) und Code-Signing (Windows) in der CI
-- [ ] CI: Liberica-NIK-**Full**-Variante im `setup-graalvm`-Step sicherstellen
-      (und dort `BUILD_NATIVE_MACOS.sh` statt `mvn -Pnative native:compile` nutzen)
-- [x] LICENSE-Datei (Apache-2.0) ergänzt
+- [ ] Code-Signing unter Windows (macOS ist signiert und notarisiert)
+- [x] GitHub-Workflow entfernt — er baute nie erfolgreich durch und stand
+      dem Projekt eher im Weg. Was ein neuer Anlauf wissen muss, steht in
+      CLAUDE.md unter „Kein CI“
+- [x] LICENSE-Datei (Apache-2.0) ergänzt; die Anwendung zeigt sie über
+      Strg+Alt+L im Lizenzfenster an — im nativen Binary geprüft (Fenster,
+      Scrollen, Darstellung), es fehlen also keine Reachability-Metadaten
+- [x] `com.sun.glass.ui.mac.MacGestureSupport` registriert: jede Trackpad-Geste
+      über dem Fenster warf im nativen Binary sonst eine
+      `ClassNotFoundException` auf die Konsole (Details in CLAUDE.md)
 
 ## Änderungen
 
@@ -494,6 +553,9 @@ Was sich je Version geändert hat, steht in [`CHANGELOG.md`](CHANGELOG.md).
 ## Lizenz
 
 Apache-2.0 — © 2026 Thorsten Ludewig (t.ludewig@gmail.com)
+
+Der vollständige Text steht in [`LICENSE`](LICENSE) und ist in der laufenden
+Anwendung über **Strg+Alt+L** (macOS: Ctrl+Option+L) einsehbar.
 
 Vollständiger Text in [`LICENSE`](LICENSE); jede Quelldatei trägt den
 zugehörigen SPDX-Header.

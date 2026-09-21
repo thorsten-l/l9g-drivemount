@@ -24,6 +24,39 @@
     "fxml|css|png|yaml|yml ab, und AppSecretKey liest den Schluessel per",
     "getResourceAsStream, wenn SECRET_PATH mit 'classpath:' beginnt.",
     "",
+    "assets/LICENSE aus demselben Grund - die Datei hat nicht einmal eine",
+    "Endung. Maven kopiert sie aus dem Projektverzeichnis dorthin (siehe",
+    "<resources> in der pom.xml), LicenseDialog liest sie per",
+    "getResourceAsStream. Ohne Eintrag zeigt das Lizenzfenster nur den",
+    "Ersatztext.",
+    "",
+    "MacGestureSupport: die Glass-Bibliothek (libglass.dylib) holt sich diese",
+    "Klasse per Class.forName AUS NATIVEM CODE und ruft dann ihre statischen",
+    "notify*/...GesturePerformed-Methoden ueber JNI. Im Image scheiterte das",
+    "mit 'ClassNotFoundException: com.sun.glass.ui.mac.MacGestureSupport',",
+    "geworfen auf dem JavaFX Application Thread - ohne Java-Aufrufer im",
+    "Stacktrace, eben weil der Aufruf von aussen kommt. Ausgeloest hat es",
+    "jede Trackpad-Geste ueber dem Fenster (scrollGesturePerformed), also",
+    "auch das Scrollen im Lizenzfenster; die Anwendung lief weiter, schrieb",
+    "aber pro Ereignis einen Stacktrace. Der Tracing-Agent sieht das nicht:",
+    "er zeichnet nur auf, was waehrend seines Laufs passiert, und ein",
+    "Start-Lauf ohne Trackpad-Geste kennt die Klasse nicht.",
+    "",
+    "Pauschal registriert (Felder, Methoden, Konstruktor) und jniAccessible,",
+    "weil _initIDs() auf der nativen Seite IDs zwischenspeichert - eine",
+    "Aufzaehlung einzelner Member waere hier genauso bruechig wie beim",
+    "FXML-Controller.",
+    "",
+    "Dieselbe Falle steckt in weiteren Glass-Klassen, die libglass.dylib per",
+    "Namen aufloest. Registriert sind ueber die Agent-Datei bereits",
+    "Application, Menu, Pixels, Screen, Size, View, Window, MacApplication,",
+    "MacMenuBarDelegate, MacMenuDelegate, MacPixels, MacPlatformFactory,",
+    "MacView und MacWindow. Ohne Registrierung sind noch: CommonDialogs,",
+    "MacCommonDialogs, MacFileNSURL (Dateiauswahl), MenuItem und EventLoop.",
+    "Die braucht diese Anwendung nicht - sie hat weder Menue noch",
+    "Dateidialog. Taucht eines davon spaeter auf, gehoert es hierher; die",
+    "Liste stammt aus 'strings libglass.dylib'.",
+    "",
     "foreign: der Downcall nach WNetAddConnection2W. Native Image legt die",
     "Downcall-Stubs zur Bauzeit an; ein zur Laufzeit erzeugter Linker-Handle",
     "findet sonst keinen und wirft MissingForeignRegistrationError (unter",
@@ -60,6 +93,13 @@
     "  CFRelease(CFTypeRef)"
   ],
   "reflection": [
+    {
+      "type": "com.sun.glass.ui.mac.MacGestureSupport",
+      "jniAccessible": true,
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true
+    },
     {
       "type": "l9g.app.drivemount.ui.LoginController",
       "allDeclaredFields": true,
@@ -161,6 +201,9 @@
     },
     {
       "glob": "assets/secret.bin"
+    },
+    {
+      "glob": "assets/LICENSE"
     }
   ]
 }

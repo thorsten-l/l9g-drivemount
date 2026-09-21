@@ -27,13 +27,14 @@ application-*.local.yaml
 # ------------------------------------------------------------------ Build
 target/
 build/
-distrib/
 .mvn/wrapper/maven-wrapper.jar
 dependency-reduced-pom.xml
 
 # Fertige Anwendungspakete (drei Archive, zusammen ~110 MB). Sie entstehen
 # aus DISTRIB.sh und gehoeren in ein Release, nicht in die Historie.
-# Die Beschreibung daneben bleibt versioniert.
+# Die Beschreibung daneben bleibt versioniert - deshalb "/distrib/*" und
+# nicht "distrib/": ein ausgeschlossenes Verzeichnis betritt git gar nicht
+# erst, die Ausnahme darunter waere dann wirkungslos.
 /distrib/*
 !/distrib/README.md
 
