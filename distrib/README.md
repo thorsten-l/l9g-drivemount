@@ -10,6 +10,7 @@ der jeweiligen Plattform.
 | Datei | Gebaut auf | Inhalt |
 |---|---|---|
 | `DriveMount-<ver>-macos-arm64.zip` | macOS, Apple Silicon | `DriveMount.app` |
+| `DriveMount-<ver>-macos-x86_64.zip` | macOS, Intel | `DriveMount.app` |
 | `DriveMount-<ver>-windows-x86_64.zip` | Windows 11 | Ordner mit `drivemount.exe` + JDK-DLLs |
 | `DriveMount-<ver>-linux-x86_64.tar.gz` | Ubuntu 24.04 | Binary, Symbole, `.desktop`-Starter, `install.sh` |
 
@@ -63,8 +64,6 @@ steckt in jedem Paket und ist über die Tastenkombination oben einsehbar.
 
 ## Was noch fehlt
 
-- **macOS Intel (x86_64)**: bisher nur Apple Silicon. Braucht einen
-  Intel-Mac zum Bauen.
 - **Windows-Code-Signing**: nicht eingerichtet, SmartScreen meldet sich daher
   beim ersten Start. Dafür braucht es ein Zertifikat einer kommerziellen CA;
   der Apple-Account hilft dort nicht.

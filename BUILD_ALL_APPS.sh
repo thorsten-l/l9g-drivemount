@@ -14,22 +14,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Baut die Anwendungspakete fuer alle drei Plattformen und sammelt sie nach
-# distrib/. Reine Klammer um die vier vorhandenen Skripte - die Arbeit machen
+# Baut die Anwendungspakete fuer alle Plattformen und sammelt sie nach
+# distrib/. Reine Klammer um die vorhandenen Skripte - die Arbeit machen
 # die, hier steht nur die richtige Reihenfolge und die Buchfuehrung darueber.
 #
-#   ./BUILD_ALL_APPS.sh                  alle drei bauen und einsammeln
-#   ./BUILD_ALL_APPS.sh --fast           ohne Tests (an alle drei durchgereicht)
-#   ./BUILD_ALL_APPS.sh --no-notarize    macOS ohne Notarisierung (spart Minuten)
+#   ./BUILD_ALL_APPS.sh                  alle bauen und einsammeln
+#   ./BUILD_ALL_APPS.sh --fast           ohne Tests (an alle durchgereicht)
+#   ./BUILD_ALL_APPS.sh --no-notarize    macOS ohne Notarisierung (spart Minuten;
+#                                        gilt fuer beide macOS-Pakete)
 #   ./BUILD_ALL_APPS.sh --skip-macos     einzelne Plattform auslassen
+#   ./BUILD_ALL_APPS.sh --skip-macos-intel
 #   ./BUILD_ALL_APPS.sh --skip-windows
 #   ./BUILD_ALL_APPS.sh --skip-linux
 #   ./BUILD_ALL_APPS.sh --no-distrib     nicht einsammeln
 #
 # Die Reihenfolge ist nicht beliebig: BUILD_NATIVE_MACOS.sh startet mit
 # "mvn clean" und raeumt target/ ab. Es muss deshalb zuerst laufen - die
-# beiden anderen bauen auf ihren eigenen Rechnern und legen ihr Ergebnis
-# danach in dasselbe target/. Umgekehrt waeren die fertigen Pakete wieder weg.
+# anderen bauen auf ihren eigenen Rechnern und legen ihr Ergebnis danach in
+# dasselbe target/. Umgekehrt waeren die fertigen Pakete wieder weg. Das gilt
+# auch fuer das Intel-Paket: gebaut wird es auf dem Intel-Mac, verpackt und
+# signiert aber hier in target/ - also ebenfalls erst nach dem macOS-Schritt.
 #
 # Ein Fehlschlag bricht NICHT ab. Ein abgeschalteter Windows- oder
 # Linux-Rechner soll nicht die beiden anderen Pakete kosten; was fehlt, steht
@@ -55,6 +59,7 @@ cd "$PROJECT_DIR"
 PASSTHROUGH=()
 MACOS_EXTRA=()
 SKIP_MACOS=""
+SKIP_MACOS_INTEL=""
 SKIP_WINDOWS=""
 SKIP_LINUX=""
 RUN_DISTRIB=1
@@ -64,6 +69,7 @@ for arg in "$@"; do
     --fast)         PASSTHROUGH+=(--fast) ;;
     --no-notarize)  MACOS_EXTRA+=(--no-notarize) ;;
     --skip-macos)   SKIP_MACOS=1 ;;
+    --skip-macos-intel) SKIP_MACOS_INTEL=1 ;;
     --skip-windows) SKIP_WINDOWS=1 ;;
     --skip-linux)   SKIP_LINUX=1 ;;
     --no-distrib)   RUN_DISTRIB="" ;;
@@ -191,7 +197,8 @@ echo "  Optionen    : ${PASSTHROUGH[*]:-keine}${MACOS_EXTRA[*]:+ ${MACOS_EXTRA[*
 echo
 
 MISSING=""
-for f in BUILD_NATIVE_MACOS.sh BUILD_NATIVE_WINDOWS.sh BUILD_NATIVE_LINUX.sh DISTRIB.sh; do
+for f in BUILD_NATIVE_MACOS.sh BUILD_NATIVE_MACOS_INTEL.sh BUILD_NATIVE_WINDOWS.sh \
+         BUILD_NATIVE_LINUX.sh DISTRIB.sh; do
   if [[ -x "$f" ]]; then
     printf '  %-28s vorhanden\n' "$f"
   else
@@ -230,31 +237,40 @@ TOTAL_START="$(date +%s)"
 # ------------------------------------------------------------------- Schritte
 # macOS zuerst: nur dieses Skript raeumt target/ lokal mit "mvn clean" ab.
 if [[ -n "$SKIP_MACOS" ]]; then
-  run_step "1/4  macOS  (lokal)" "" SKIP
+  run_step "1/5  macOS  (lokal)" "" SKIP
 else
-  run_step "1/4  macOS  (lokal)" "target/DriveMount-macos.zip" \
+  run_step "1/5  macOS  (lokal)" "target/DriveMount-macos.zip" \
     ./BUILD_NATIVE_MACOS.sh --create-app \
       ${PASSTHROUGH[@]+"${PASSTHROUGH[@]}"} ${MACOS_EXTRA[@]+"${MACOS_EXTRA[@]}"}
 fi
 
-if [[ -n "$SKIP_WINDOWS" ]]; then
-  run_step "2/4  Windows (ssh)" "" SKIP
+# Nach dem macOS-Schritt, siehe oben: verpackt wird hier in target/.
+if [[ -n "$SKIP_MACOS_INTEL" ]]; then
+  run_step "2/5  macOS Intel (ssh)" "" SKIP
 else
-  run_step "2/4  Windows (ssh)" "target/DriveMount-windows.zip" \
+  run_step "2/5  macOS Intel (ssh)" "target/DriveMount-macos-x86_64.zip" \
+    ./BUILD_NATIVE_MACOS_INTEL.sh --create-app \
+      ${PASSTHROUGH[@]+"${PASSTHROUGH[@]}"} ${MACOS_EXTRA[@]+"${MACOS_EXTRA[@]}"}
+fi
+
+if [[ -n "$SKIP_WINDOWS" ]]; then
+  run_step "3/5  Windows (ssh)" "" SKIP
+else
+  run_step "3/5  Windows (ssh)" "target/DriveMount-windows.zip" \
     ./BUILD_NATIVE_WINDOWS.sh --create-app ${PASSTHROUGH[@]+"${PASSTHROUGH[@]}"}
 fi
 
 if [[ -n "$SKIP_LINUX" ]]; then
-  run_step "3/4  Linux   (ssh)" "" SKIP
+  run_step "4/5  Linux   (ssh)" "" SKIP
 else
-  run_step "3/4  Linux   (ssh)" "target/DriveMount-linux.tar.gz" \
+  run_step "4/5  Linux   (ssh)" "target/DriveMount-linux.tar.gz" \
     ./BUILD_NATIVE_LINUX.sh --create-app ${PASSTHROUGH[@]+"${PASSTHROUGH[@]}"}
 fi
 
 if [[ -n "$RUN_DISTRIB" ]]; then
-  run_step "4/4  Einsammeln" "distrib/SHA256SUMS" ./DISTRIB.sh
+  run_step "5/5  Einsammeln" "distrib/SHA256SUMS" ./DISTRIB.sh
 else
-  run_step "4/4  Einsammeln" "" SKIP
+  run_step "5/5  Einsammeln" "" SKIP
 fi
 
 # --------------------------------------------------------------- Zusammenfassung

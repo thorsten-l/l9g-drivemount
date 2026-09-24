@@ -33,6 +33,16 @@
 #                                           Zertifikat, falls eins im
 #                                           Schluesselbund liegt, und notarisiert.
 #   ./BUILD_NATIVE_MACOS.sh --no-notarize   Notarisierung ueberspringen (schneller)
+#   ./BUILD_NATIVE_MACOS.sh --package-binary=PFAD
+#                                           nicht bauen, sondern ein anderswo
+#                                           gebautes macOS-Binary verpacken,
+#                                           signieren und notarisieren (fuer
+#                                           BUILD_NATIVE_MACOS_INTEL.sh: der
+#                                           Intel-Mac baut, signiert wird hier,
+#                                           wo Zertifikat und Notar-Profil
+#                                           liegen). Ergebnis nach Architektur
+#                                           benannt, z.B.
+#                                           target/DriveMount-macos-x86_64.zip
 #
 # Umgebung: kommt aus ./.env (siehe env.sample), einzeln uebersteuerbar
 # ueber die Umgebung.
@@ -42,6 +52,8 @@
 #   MACOS_NOTARY_PROFILE   Schluesselbund-Profil fuer notarytool
 #
 # Ergebnis: target/drivemount  (mit --create-app zusaetzlich DriveMount.app)
+#           --package-binary: target/app-macos-<arch>/DriveMount.app und
+#                             target/DriveMount-macos-<arch>.zip
 
 set -euo pipefail
 
@@ -69,6 +81,7 @@ APP_ID="l9g.app.drivemount"
 #   xcrun notarytool store-credentials "drivemount" --apple-id ... --team-id ...
 NOTARY_PROFILE="${MACOS_NOTARY_PROFILE:-drivemount}"
 NO_NOTARIZE=""
+PACKAGE_BINARY=""
 
 for arg in "$@"; do
   case "$arg" in
@@ -78,6 +91,7 @@ for arg in "$@"; do
     --agent)              AGENT_ONLY="1" ;;
     --create-app)         CREATE_APP="1" ;;
     --no-notarize)        NO_NOTARIZE="1" ;;
+    --package-binary=*)   PACKAGE_BINARY="${arg#*=}"; CREATE_APP="1" ;;
     -h|--help)            sed -n '/^# Baut /,/^# Ergebnis/p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unbekannte Option: $arg (siehe --help)" >&2; exit 2 ;;
   esac
@@ -136,6 +150,17 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 cd "$PROJECT_DIR"
 
+# Maven: ein installiertes bevorzugen, sonst den Wrapper aus dem Projekt.
+# Der Intel-Build-Mac hat kein Maven - wie der Windows-Rechner, der aus
+# demselben Grund mvnw.cmd benutzt. Der Wrapper (only-script) laedt die in
+# .mvn/wrapper/maven-wrapper.properties genannte Version beim ersten Aufruf
+# selbst herunter.
+if command -v mvn >/dev/null 2>&1; then
+  MVN=(mvn)
+else
+  MVN=("$PROJECT_DIR/mvnw")
+fi
+
 # artifactId und version direkt aus der pom.xml lesen.
 #
 # Frueher stand hier "mvn help:evaluate" mit dem sed als Rueckfallebene. Das
@@ -162,11 +187,38 @@ if [[ -z "$ARTIFACT_ID" ]]; then
 fi
 BINARY="$PROJECT_DIR/target/$ARTIFACT_ID"
 
+# Standardablage des App-Bundles; --package-binary legt sie nach Architektur
+# ab, damit ein Intel-Paket das Apple-Silicon-Paket nicht ueberschreibt.
+APP_DIR="$PROJECT_DIR/target"
+ZIP_NAME="DriveMount-macos.zip"
+
+if [[ -n "$PACKAGE_BINARY" ]]; then
+  if [[ ! -f "$PACKAGE_BINARY" ]]; then
+    echo "FEHLER: --package-binary: $PACKAGE_BINARY gibt es nicht." >&2
+    exit 1
+  fi
+  # Die Architektur steht im Mach-O-Kopf; lipo liest sie ohne Umweg. Ein
+  # Universal-Binary ergaebe "x86_64 arm64" - das wird hier nicht gebaut.
+  PACKAGE_ARCH="$(lipo -archs "$PACKAGE_BINARY" 2>/dev/null || true)"
+  case "$PACKAGE_ARCH" in
+    x86_64|arm64) ;;
+    *) echo "FEHLER: $PACKAGE_BINARY ist kein macOS-Binary fuer eine" \
+            "Architektur (lipo: '${PACKAGE_ARCH:-?}')." >&2
+       exit 1 ;;
+  esac
+  BINARY="$PACKAGE_BINARY"
+  APP_DIR="$PROJECT_DIR/target/app-macos-$PACKAGE_ARCH"
+  ZIP_NAME="DriveMount-macos-$PACKAGE_ARCH.zip"
+  echo "==> Nur verpacken: $BINARY ($PACKAGE_ARCH)"
+fi
+
+if [[ -z "$PACKAGE_BINARY" ]]; then
+
 echo "==> Toolchain"
 echo "    JAVA_HOME = $JAVA_HOME"
 echo "    $(java -version 2>&1 | head -1)"
 echo "    $(native-image --version 2>&1 | head -1)"
-echo "    $(mvn -v 2>/dev/null | head -1)"
+echo "    $("${MVN[@]}" -v 2>/dev/null | head -1)"
 
 # --agent: App auf der JVM mit dem Tracing-Agent starten. Alle UI-Pfade
 # (Login ok, Login-Fehler, Mounts) einmal durchspielen, dann Fenster schliessen.
@@ -179,7 +231,7 @@ if [[ -n "$AGENT_ONLY" ]]; then
   echo "==> mvn ${CLEAN:+$CLEAN }package -DskipTests"
   echo
   # shellcheck disable=SC2086
-  mvn $CLEAN package -DskipTests
+  "${MVN[@]}" $CLEAN package -DskipTests
   echo
   echo "==> Tracing-Agent — Metadaten nach $AGENT_CONFIG_DIR"
   echo "    Jetzt bitte ALLE UI-Pfade durchspielen: erfolgreicher Login,"
@@ -203,7 +255,7 @@ echo
 
 START=$(date +%s)
 # shellcheck disable=SC2086
-mvn $CLEAN package "${MVN_ARGS[@]}"
+"${MVN[@]}" $CLEAN package "${MVN_ARGS[@]}"
 END=$(date +%s)
 
 echo
@@ -215,6 +267,8 @@ else
   echo "==> FEHLER: Binary nicht erzeugt: $BINARY" >&2
   exit 1
 fi
+
+fi  # Ende: nicht --package-binary
 
 # --------------------------------------------------------------- App-Bundle
 # Das nackte Binary laesst sich nur im Terminal starten und erscheint im Dock
@@ -239,13 +293,18 @@ if [[ -n "$CREATE_APP" ]]; then
   # selbst geschrieben und sie ist identisch mit dem, was die UI unten links
   # anzeigt. mvn help:evaluate nur als Rueckfallebene (langsam).
   BUILD_INFO="$PROJECT_DIR/target/classes/META-INF/build-info.properties"
-  if [[ -f "$BUILD_INFO" ]]; then
+  if [[ -n "$PACKAGE_BINARY" ]]; then
+    # Das Binary kommt von einem anderen Rechner, gebaut aus genau diesen
+    # Quellen. Die build-info.properties hier in target/ gehoert dagegen zum
+    # letzten *lokalen* Build und koennte eine andere Version tragen.
+    VERSION="$(pom_value version)"
+  elif [[ -f "$BUILD_INFO" ]]; then
     VERSION="$(sed -n 's/^build\.version=//p' "$BUILD_INFO" | head -1)"
   fi
-  VERSION="${VERSION:-$(mvn -q -o help:evaluate -Dexpression=project.version -DforceStdout 2>/dev/null)}"
+  VERSION="${VERSION:-$("${MVN[@]}" -q -o help:evaluate -Dexpression=project.version -DforceStdout 2>/dev/null)}"
   VERSION="${VERSION:-0.0.0}"
 
-  APP="$PROJECT_DIR/target/$APP_NAME.app"
+  APP="$APP_DIR/$APP_NAME.app"
   echo
   echo "==> App-Bundle: $APP"
 
@@ -324,7 +383,7 @@ PLIST
   fi
 
   # Zum Weitergeben: ditto statt zip, das erhaelt Symlinks und die Signatur.
-  ZIP="$PROJECT_DIR/target/$APP_NAME-macos.zip"
+  ZIP="$PROJECT_DIR/target/$ZIP_NAME"
   rm -f "$ZIP"
   ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
 

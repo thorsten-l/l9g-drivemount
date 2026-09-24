@@ -271,7 +271,7 @@ entfaellt das.
 Voraussetzung: **Liberica NIK Full** (mit LibericaFX) als `JAVA_HOME`;
 Windows zusätzlich Visual Studio Build Tools (`cl.exe` im Pfad). Kein
 Cross-Compiling — pro Zielplattform bauen. Gebaut wird auf eigenen Rechnern,
-es gibt **keine CI**; den Ablauf über alle drei Plattformen fasst
+es gibt **keine CI**; den Ablauf über alle Plattformen fasst
 `./BUILD_ALL_APPS.sh` zusammen.
 
 ```bash
@@ -293,10 +293,65 @@ erst nach Minuten im `native-image`-Schritt ab. Anderer Pfad:
 NIK_HOME=/pfad/zur/nik-full ./BUILD_NATIVE_MACOS.sh
 ```
 
-Intern läuft `mvn clean package -Pnative`. Wichtig dabei: `process-aot`
+Intern läuft `mvn clean package -Pnative` — mit dem installierten `mvn`,
+oder mit dem Maven Wrapper `./mvnw`, wenn keins auf dem `PATH` liegt (wie auf
+dem Intel-Mac, siehe unten). Wichtig dabei: `process-aot`
 läuft über `DrivemountSpring` (`aot.main.class`), **nicht** über
 `Launcher` — sonst startet die AOT-Verarbeitung JavaFX und der Build bleibt
 am offenen Login-Fenster hängen.
+
+### macOS Intel (x86_64)
+
+Auch zwischen den beiden Mac-Architekturen gibt es kein Cross-Compiling —
+ein Intel-Binary entsteht nur auf einem Intel-Mac. `BUILD_NATIVE_MACOS_INTEL.sh`
+überträgt die Quellen per ssh, lässt drüben dasselbe `BUILD_NATIVE_MACOS.sh`
+laufen und holt das Binary als `target/drivemount-macos-x86_64` zurück.
+
+**Signiert und notarisiert wird hier**, nicht auf dem Intel-Mac: dort liegt
+kein Developer-ID-Zertifikat, und über ssh ist der Schlüsselbund ohnehin
+gesperrt. `codesign` und `notarytool` ist die Architektur des Binaries
+gleichgültig. Das übernimmt `BUILD_NATIVE_MACOS.sh --package-binary=<pfad>`:
+es baut nicht, sondern verpackt ein fertiges Binary mit derselben
+`Info.plist`, Signatur und Notarisierung wie das Apple-Silicon-Paket und legt
+es nach Architektur ab — das arm64-Paket bleibt dabei unberührt.
+
+```bash
+./BUILD_NATIVE_MACOS_INTEL.sh --check        # Voraussetzungen prüfen
+./BUILD_NATIVE_MACOS_INTEL.sh --setup        # einmalig: NIK ssh-tauglich machen
+./BUILD_NATIVE_MACOS_INTEL.sh --create-app   # -> target/DriveMount-macos-x86_64.zip
+```
+
+Drüben braucht es nur die Liberica NIK Full (x86_64) und die Command Line
+Tools — kein Maven, kein Zertifikat. Erster Lauf: 59 Tests grün,
+`native-image` 2 m 17 s, notarisiert (`accepted / source=Notarized Developer
+ID`).
+
+> **Warum `--setup`?** Zwei Fallen, beide gemessen, beide mit demselben
+> Symptom: `java` und `native-image` starten über ssh nicht und geben keinen
+> Laut von sich.
+>
+> 1. **Quarantäne.** Eine per Browser geladene NIK trägt auf jeder Datei
+>    `com.apple.quarantine`. Gatekeeper will beim ersten Start nachfragen —
+>    über ssh gibt es keinen Dialog, der Aufruf hängt ewig.
+> 2. **Gebrochenes Bundle-Siegel.** Die NIK kommt als macOS-Bundle
+>    (`…/Contents/Home`), und `codesign --verify --deep` meldet dafür
+>    `invalid Info.plist (plist or signature have been modified)` — bei der
+>    Intel- **und** der Apple-Silicon-NIK; `bin/native-image` und die
+>    NIK-Lizenztexte sind nach dem Versiegeln hinzugekommen. Jedes Programm
+>    darin ist für sich korrekt signiert. Über ssh prüft macOS ein Programm
+>    aber im Kontext seines Bundles: der Prozess steht bei `_dyld_start`,
+>    `syspolicyd` rechnet rund 160 s, verwirft das Bundle (`MacOS error:
+>    -67030`) und beendet den Prozess mit SIGKILL (Exit 137). Hier auf dem
+>    Apple-Silicon-Mac fällt das nicht auf, weil `java` aus dem Terminal
+>    startet und nicht über ssh.
+>
+> `--setup` legt deshalb eine **flache Kopie** von `…/Contents/Home` an
+> (`MACOS_INTEL_NIK_HOME`, Vorgabe `/opt/nik/25-full-flat`), außerhalb jeder
+> Bundle-Hülle und ohne Quarantäne (`ditto --noqtn`). Dann prüft macOS jedes
+> Programm einzeln, und das besteht: `java -version` in 3 s statt Abbruch
+> nach 162 s. Die installierte NIK bleibt unangetastet; nach einem NIK-Update
+> `--setup` erneut aufrufen. Der Build verweigert den Start, solange eine der
+> beiden Fallen offen ist, statt minutenlang stumm zu stehen.
 
 ### Linux
 
@@ -401,36 +456,42 @@ an einer Kommentarregel zerbrechen.
 | `NIK_HOME` | Liberica NIK Full auf dem lokalen Rechner |
 | `MACOS_SIGN_IDENTITY` | Signaturzertifikat; leer = selbst suchen |
 | `MACOS_NOTARY_PROFILE` | Schlüsselbund-Profil für `notarytool` |
-| `WIN_HOST` · `LINUX_HOST` | ssh-Ziele; **Pflicht** für den jeweiligen Build |
-| `WIN_PROJECT` · `LINUX_PROJECT` | Projektverzeichnis auf dem Build-Rechner |
+| `WIN_HOST` · `LINUX_HOST` · `MACOS_INTEL_HOST` | ssh-Ziele; **Pflicht** für den jeweiligen Build |
+| `WIN_PROJECT` · `LINUX_PROJECT` · `MACOS_INTEL_PROJECT` | Projektverzeichnis auf dem Build-Rechner |
 | `WIN_STAGING` | Ablage für übertragene Archive (mit Schrägstrichen) |
 | `WIN_NIK_HOME` · `LINUX_NIK_HOME` | Liberica NIK Full drüben |
+| `MACOS_INTEL_NIK_SOURCE` | die auf dem Intel-Mac installierte NIK Full |
+| `MACOS_INTEL_NIK_HOME` | die flache Kopie davon, mit der gebaut wird (legt `--setup` an) |
 | `WIN_COMPANY_NAME` | `CompanyName` in den Versionsinfos der EXE; leer lassen, solange die EXE nicht signiert ist |
 
 `.env` wird **nicht** auf die Build-Rechner übertragen — die Tarballs
 enthalten nur Quellen, Skripte und Packaging. Drüben greifen deshalb die
-Vorgaben, und `BUILD_NATIVE_LINUX.sh` reicht `NIK_HOME` ausdrücklich durch.
+Vorgaben, und `BUILD_NATIVE_LINUX.sh` wie `BUILD_NATIVE_MACOS_INTEL.sh`
+reichen `NIK_HOME` ausdrücklich durch.
 
 ### Anwendungen bauen (`--create-app`)
 
-Für alle drei Plattformen auf einmal gibt es `./BUILD_ALL_APPS.sh`. Das Skript
-ruft die drei Build-Skripte und anschließend `./DISTRIB.sh` auf, meldet zu
+Für alle Plattformen auf einmal gibt es `./BUILD_ALL_APPS.sh`. Das Skript
+ruft die vier Build-Skripte und anschließend `./DISTRIB.sh` auf, meldet zu
 jedem Schritt Startzeit, Dauer und Größe des Ergebnisses und schließt mit
 einer Statustabelle. Ein fehlgeschlagener Schritt bricht den Lauf **nicht** ab
-— ein ausgeschalteter Testrechner soll nicht die beiden anderen Pakete kosten
-—, taucht aber in der Tabelle auf und macht den Exit-Code ungleich 0.
+— ein ausgeschalteter Testrechner soll nicht die anderen Pakete kosten —,
+taucht aber in der Tabelle auf und macht den Exit-Code ungleich 0.
 
 ```bash
-./BUILD_ALL_APPS.sh                  # alle drei bauen und nach distrib/ sammeln
-./BUILD_ALL_APPS.sh --fast           # ohne Tests
-./BUILD_ALL_APPS.sh --skip-windows   # einzelne Plattform auslassen
-./BUILD_ALL_APPS.sh --no-notarize    # macOS ohne Notarisierung
+./BUILD_ALL_APPS.sh                    # alle bauen und nach distrib/ sammeln
+./BUILD_ALL_APPS.sh --fast             # ohne Tests
+./BUILD_ALL_APPS.sh --skip-windows     # einzelne Plattform auslassen
+./BUILD_ALL_APPS.sh --skip-macos-intel # ohne Intel-Paket
+./BUILD_ALL_APPS.sh --no-notarize      # macOS ohne Notarisierung (beide Pakete)
 ```
 
 Die Reihenfolge darin ist nicht beliebig: `BUILD_NATIVE_MACOS.sh` beginnt mit
-`mvn clean` und räumt `target/` ab, muss also zuerst laufen. Die beiden
-anderen bauen auf ihren eigenen Rechnern und legen ihr Ergebnis danach in
-dasselbe Verzeichnis — umgekehrt wären die fertigen Pakete wieder weg.
+`mvn clean` und räumt `target/` ab, muss also zuerst laufen. Die anderen
+bauen auf ihren eigenen Rechnern und legen ihr Ergebnis danach in dasselbe
+Verzeichnis — umgekehrt wären die fertigen Pakete wieder weg. Das Intel-Paket
+folgt als zweites: gebaut wird es drüben, verpackt und signiert aber hier in
+`target/`.
 
 Einzeln geht es weiterhin. Das nackte Binary lässt sich nur im Terminal
 starten; `--create-app` macht daraus eine startbare Anwendung mit dem
@@ -557,6 +618,12 @@ Die Symbole liegen fertig im Projekt (`packaging/drivemount.icns`,
       und `client-secret` ein optionales Feld werden, damit beide Client-Typen
       per Konfiguration funktionieren
 - [ ] Code-Signing unter Windows (macOS ist signiert und notarisiert)
+- [x] **macOS Intel (x86_64)**: `BUILD_NATIVE_MACOS_INTEL.sh` baut auf einem
+      Intel-Mac, signiert und notarisiert wird hier. Erstes Paket
+      `DriveMount-1.1.2-macos-x86_64.zip`, notarisiert, aus denselben Quellen
+      wie die übrigen 1.1.2-Pakete. Zwei Fallen auf dem Weg dorthin
+      (Quarantäne, gebrochenes Bundle-Siegel der NIK) sind oben unter
+      „macOS Intel“ beschrieben
 - [x] GitHub-Workflow entfernt — er baute nie erfolgreich durch und stand
       dem Projekt eher im Weg. Was ein neuer Anlauf wissen muss, steht in
       CLAUDE.md unter „Kein CI“

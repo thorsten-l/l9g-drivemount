@@ -8,6 +8,8 @@
 # das erledigen die drei BUILD_NATIVE*-Skripte:
 #
 #   ./BUILD_NATIVE_MACOS.sh --create-app     -> target/DriveMount-macos.zip
+#   ./BUILD_NATIVE_MACOS_INTEL.sh --create-app
+#                                            -> target/DriveMount-macos-x86_64.zip
 #   ./BUILD_NATIVE_WINDOWS.sh --create-app   -> target/DriveMount-windows.zip
 #   ./BUILD_NATIVE_LINUX.sh --create-app     -> target/DriveMount-linux.tar.gz
 #
@@ -66,6 +68,10 @@ collect()
 echo "==> Pakete nach $DISTRIB/ (Version $VERSION)"
 collect "target/DriveMount-macos.zip" \
   "DriveMount-$VERSION-macos-$MACOS_ARCH.zip"
+# Auf dem Intel-Mac gebaut, hier signiert - die Architektur steht deshalb
+# schon im Namen und kommt nicht von diesem Rechner.
+collect "target/DriveMount-macos-x86_64.zip" \
+  "DriveMount-$VERSION-macos-x86_64.zip"
 collect "target/DriveMount-windows.zip" \
   "DriveMount-$VERSION-windows-x86_64.zip"
 collect "target/DriveMount-linux.tar.gz" \

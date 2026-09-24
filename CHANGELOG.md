@@ -8,6 +8,37 @@ Die Zeilen sind aus dem Projektstand und den gebauten Paketen rekonstruiert —
 das Repository wurde erst am 21.09.2026 angelegt und hat für die Zeit davor
 keine Historie.
 
+## [Unveröffentlicht]
+
+### Hinzugefügt
+
+- **macOS-Paket für Intel (x86_64).** `BUILD_NATIVE_MACOS_INTEL.sh` baut auf
+  einem Intel-Mac per ssh und holt das Binary zurück; signiert und
+  notarisiert wird auf dem Apple-Silicon-Mac, der das Zertifikat hat. Für
+  1.1.2 nachgereicht: `DriveMount-1.1.2-macos-x86_64.zip`, notarisiert, aus
+  denselben Quellen wie die übrigen 1.1.2-Pakete (Anwendungscode identisch
+  mit dem Tag `v1.1.2`).
+- `BUILD_NATIVE_MACOS.sh --package-binary=PFAD` verpackt, signiert und
+  notarisiert ein anderswo gebautes Binary, statt selbst zu bauen. Das
+  Ergebnis wird nach Architektur abgelegt und überschreibt das
+  Apple-Silicon-Paket nicht.
+- `BUILD_NATIVE_MACOS_INTEL.sh --setup` macht die NIK auf dem Intel-Mac
+  ssh-tauglich: eine flache Kopie ohne Bundle-Hülle und ohne Quarantäne.
+  Aus dem Bundle heraus startet die NIK über ssh nicht — es ist falsch
+  versiegelt (`invalid Info.plist`), und macOS beendet `java` nach rund
+  160 s Prüfung mit SIGKILL. Der Build verweigert den Start, solange das
+  nicht behoben ist, statt minutenlang stumm zu stehen.
+
+### Geändert
+
+- `BUILD_NATIVE_MACOS.sh` nimmt den Maven Wrapper `./mvnw`, wenn kein `mvn`
+  auf dem `PATH` liegt — wie der Windows-Build schon immer. Der Intel-Mac
+  braucht damit kein installiertes Maven.
+- `BUILD_ALL_APPS.sh` baut das Intel-Paket als zweiten Schritt mit
+  (`--skip-macos-intel` lässt es aus, `--no-notarize` gilt für beide
+  macOS-Pakete). `DISTRIB.sh` sammelt es als
+  `DriveMount-<ver>-macos-x86_64.zip` ein.
+
 ## [1.1.2] — 2026-09-21
 
 Kleine Nachbesserungen an der Login-Maske aus 1.1.1, dazu zwei Korrekturen
