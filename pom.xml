@@ -7,13 +7,13 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>4.1.1</version>
+    <version>4.1.3</version>
     <relativePath/> <!-- lookup parent from repository -->
   </parent>
 
   <groupId>l9g.app</groupId>
   <artifactId>drivemount</artifactId>
-  <version>1.1.2</version>
+  <version>1.1.3</version>
   <name>L9G DriveMount</name>
   <description>Cross-platform SMB drive mounter - Keycloak Direct Grant (Passwort + TOTP)</description>
 
@@ -45,9 +45,9 @@
 
   <properties>
     <java.version>25</java.version>
-    <javafx.version>25.0.4</javafx.version>
+    <javafx.version>25.0.5.1</javafx.version>
     <main.class>l9g.app.drivemount.Launcher</main.class>
-    <l9g.crypto.version>1.0.7</l9g.crypto.version>
+    <l9g.crypto.version>2.0.1</l9g.crypto.version>
     <!-- Nur fuer spring-boot:process-aot (Native Build), siehe native-Profil -->
     <aot.main.class>l9g.app.drivemount.DrivemountSpring</aot.main.class>
     <build.profile>default</build.profile>
